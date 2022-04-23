@@ -1,4 +1,6 @@
 /* -*- mode: c; mode: folding; tab-width: 8 -*-
+ *  SPDX-License-Identifier: MIT
+ *  Copyright (C) 2021-2022 Sergey Bolshakov <beefdeadbeef@gmail.com>
  */
 
 #include <libopencm3/stm32/gpio.h>

@@ -1,4 +1,6 @@
 /*
+ *  SPDX-License-Identifier: MIT
+ *  Copyright (C) 2021-2022 Sergey Bolshakov <beefdeadbeef@gmail.com>
  */
 
 #ifdef DEBUG
