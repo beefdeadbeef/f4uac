@@ -1,0 +1,4 @@
+[submodule "libopencm3"]
+	path = libopencm3
+	url = https://github.com/beefdeadbeef/libopencm3.git
+	branch = f4uac
