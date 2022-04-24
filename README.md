@@ -33,3 +33,5 @@ configured as push-pull:
 ```
 make POWERSTAGE=1
 ```
+
+<img src="img/hbridge.png" />
