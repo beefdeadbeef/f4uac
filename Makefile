@@ -1,7 +1,7 @@
 #---------------------------------------------------------------
 CROSS	= arm-none-eabi-
 CC	= $(CROSS)gcc
-LD	= $(CROSS)ld
+OBJCOPY	= $(CROSS)objcopy
 HOSTCC	= gcc
 OCTAVE	= octave
 
@@ -30,7 +30,7 @@ TABLES	= tables.h
 SAMPLES = s1.s16 s2.s16 s3.s16
 OBJS	= main.o pwm.o usbd.o trace.o trace_stdio.o dsp.o
 
-all:	lib $(BINARY).elf
+all:	lib $(BINARY).elf $(BINARY).bin
 
 lib:
 	make -C $(OPENCM3) TARGETS=stm32/f4 lib
@@ -45,6 +45,9 @@ dsp.o:	$(TABLES) $(SAMPLES)
 
 %.elf:	$(OBJS)
 	$(CC) $^ $(LDFLAGS) $(LDLIBS) -o $@
+
+%.bin: %.elf
+	$(OBJCOPY) -Obinary $< $@
 
 dsp:	dsp.c $(TABLES) $(SAMPLES)
 	$(HOSTCC) -g -Wall -O0 -DKICKSTART $< -o $@
