@@ -12,10 +12,6 @@ VPATH	+= $(OPENCM3)/tests/shared
 DEFS	= -DSTM32F4
 DEFS	+= -I$(OPENCM3)/include -I$(OPENCM3)/tests/shared
 
-ifeq ($(POWERSTAGE),)
-DEFS	+= -DHEADSET
-endif
-
 CFLAGS	= -pipe -g -Os -MMD
 CFLAGS	+= -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS	+= -Wall -Wextra -Wshadow -Wimplicit-function-declaration -Wredundant-decls

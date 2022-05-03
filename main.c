@@ -110,10 +110,6 @@ int main() {
 			GPIO5|GPIO7|GPIO8|GPIO9|GPIO11|GPIO12);
 	gpio_set_af(GPIOA, GPIO_AF5, GPIO5|GPIO7);		/* SPI1 CLK/MOSI */
 	gpio_set_af(GPIOA, GPIO_AF1, GPIO8|GPIO9);		/* TIM1 CH1/2 */
-#ifdef HEADSET
-	gpio_set_output_options(GPIOA, GPIO_OTYPE_OD,
-				GPIO_OSPEED_25MHZ, GPIO8|GPIO9);
-#endif
 	gpio_set_af(GPIOA, GPIO_AF10, GPIO11|GPIO12);           /* USB_FS */
 
 	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE,
@@ -124,10 +120,6 @@ int main() {
 	gpio_set(GPIOB, GPIO12);				/* PWMENA */
 	gpio_set_af(GPIOB, GPIO_AF7, GPIO6|GPIO7);              /* USART1 TX/RX */
 	gpio_set_af(GPIOB, GPIO_AF1, GPIO13|GPIO14);		/* TIM1 CH1N/2N */
-#ifdef HEADSET
-	gpio_set_output_options(GPIOB, GPIO_OTYPE_OD,
-				GPIO_OSPEED_25MHZ, GPIO13|GPIO14);
-#endif
 	gpio_mode_setup(GPIOC, GPIO_MODE_OUTPUT,
 			GPIO_PUPD_NONE, GPIO13);		/* PC13 LED */
 /*
