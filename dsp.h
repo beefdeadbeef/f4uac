@@ -36,12 +36,6 @@ static inline int32_t __ssat(int32_t val, uint32_t sat)
 
 #endif
 
-__attribute__((always_inline))
-static inline int32_t ssat(int64_t val)
-{
-        return  __ssat((int32_t)(val >> 32), 31) << 1;
-}
-
 __asm__ (
 	".pushsection .rodata,\"a\"\n"
 	".global s1_tbl\n"

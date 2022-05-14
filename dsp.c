@@ -82,9 +82,9 @@ uint16_t rb_put(void *src, uint16_t len)
 #include "tables.h"
 #define NUMTAPS (sizeof(hc)/sizeof(hc[0]))
 #define PHASELENGTH (NUMTAPS / UPSAMPLE)
-#define NUMTAPSX (sizeof(hcx)/sizeof(hcx[0]))
 #define VOLSTEPS (sizeof(vl)/sizeof(vl[0]))
 
+#define FX8  (float)(1U<<7)
 #define FX16 (float)(1U<<15)
 #define FX24 (float)(1U<<23)
 #define FX32 (float)(1U<<31)
@@ -126,7 +126,7 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
  *
  */
 __attribute__((optimize (3)))
-static void upsample(int32_t *dst, const int16_t *src)
+static void upsample(float *dst, const int16_t *src)
 {
 	static float taps[NUMTAPS];
 	static float state[2 * (PHASELENGTH - 1) + NSAMPLES];
@@ -185,8 +185,8 @@ static void upsample(int32_t *dst, const int16_t *src)
 				tap += UPSAMPLE;
 			}
 
-			*dst++ = suml * FX32;
-			*dst++ = sumr * FX32;
+			*dst++ = suml;
+			*dst++ = sumr;
 		}
 
 		backlog += 2;
@@ -197,43 +197,37 @@ static void upsample(int32_t *dst, const int16_t *src)
 		*samples++ = *backlog++;
 }
 
+#define ORDER 4
+const float abg[] = { .0157f, .1359f, .514f, .3609f, .003f, .0018f };
+
 __attribute__((optimize (3)))
-static void sigmadelta(uint32_t *dst, int32_t *src)
+static uint32_t ns(const float *src, float *z)
 {
-	static int32_t state[2 * (NUMTAPSX - 1) + NFRAMES];
-	int32_t *samples = &state[2 * (NUMTAPSX - 1)];
-	int32_t *backlog = state;
-	uint16_t i, nsamples = NFRAMES;
+	const float *x = abg;
+	const float *g = &abg[ORDER];
+	float sum;
+	int8_t p;
 
-	while (nsamples) {
-		const int32_t *tap = hcx;
-		int32_t *sample = backlog;
-		int64_t suml, sumr;
-		int32_t ssum;
-		uint32_t p;
+	sum = *src - z[4];
+	z[0] += *x++ * sum + *g++ * z[1];
+	z[1] += z[0] + *x++ * sum;
+	z[2] += z[1] + *x++ * sum + *g * z[3];
+	z[3] += z[2] + *x * sum;
+	sum += z[3] + z[4];
+	z[4] = (p = __ssat((int32_t)(sum * FX8), 8)) / FX8;
 
-		suml = (int64_t)*src++ << 31;
-		sumr = (int64_t)*src++ << 31;
-		for (i = NUMTAPSX; i; i--) {
-			suml += *sample++ * *tap;
-			sumr += *sample++ * *tap;
-			tap++;
-		}
+	return (1U<<7) + p;
+}
 
-		ssum = ssat(suml);
-		*dst++ = (p = ssum + (1U<<31)) >> 24;
-		*samples++ = (p & 0xff000000) + (1U<<31) - ssum;
+__attribute__((optimize (3)))
+static void sigmadelta(uint32_t *dst, const float *src)
+{
+	static float z[2 * (ORDER + 1)];
 
-		ssum = ssat(sumr);
-		*dst++ = (p = ssum + (1U<<31)) >> 24;
-		*samples++ = (p & 0xff000000) + (1U<<31) - ssum;
-
-		backlog += 2;
-		nsamples -= 2;
+	for (uint16_t nsamples = NFRAMES; nsamples; nsamples -= 2) {
+		*dst++ = ns(src++, z);
+		*dst++ = ns(src++, &z[ORDER + 1]);
 	}
-
-	for (i = 2 * (NUMTAPSX - 1), samples = state; i; i--)
-		*samples++ = *backlog++;
 }
 
 /*
@@ -242,7 +236,7 @@ static void sigmadelta(uint32_t *dst, int32_t *src)
 __attribute__((optimize (3)))
 static uint16_t resample(uint32_t *dst, const int16_t *src)
 {
-	int32_t samples[NFRAMES];
+	float samples[NFRAMES];
 
 	upsample(samples, src);
 	sigmadelta(dst, samples);
