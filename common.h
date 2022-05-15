@@ -15,7 +15,7 @@
 /*
  * we do things in chunks that size (samples)
  */
-#define NSAMPLES 32
+#define NSAMPLES 128
 
 /*
  * upsampling ratio
