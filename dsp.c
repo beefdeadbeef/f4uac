@@ -44,7 +44,8 @@ void rb_setup(sample_fmt fmt)
 	    2 * NSAMPLES,		/* SAMPLE_FORMAT_NONE */
 	    2 * NSAMPLES,		/* SAMPLE_FORMAT_S16 */
 	    3 * NSAMPLES,		/* SAMPLE_FORMAT_S24 */
-	    4 * NSAMPLES		/* SAMPLE_FORMAT_S32 */
+	    4 * NSAMPLES,		/* SAMPLE_FORMAT_S32 */
+	    4 * NSAMPLES		/* SAMPLE_FORMAT_F32 */
 	} [fmt];
 }
 
@@ -146,6 +147,10 @@ static void upsample(float *dst, const int16_t *src)
 
 	while (nsamples) {
 		switch (format) {
+		case SAMPLE_FORMAT_F32:
+			*samples++ = *(float *)s32++;
+			*samples++ = *(float *)s32++;
+			break;
 		case SAMPLE_FORMAT_S32:
 			*samples++ = *s32++ / FX32;
 			*samples++ = *s32++ / FX32;
