@@ -8,14 +8,11 @@ fd = fopen([fn, ".s16"], "w");
 
 switch (fn)
   case "s1"
-    n=192;
-    s = sin(2*pi*[0:n-1]*1000/fs);
-  case "s2"
     n=96;
     s0 = sin(2*pi*[0:n-1]*1000/fs);
     s1 = fliplr(sin(2*pi*[1:n]*1000/fs));
     s = reshape ([s0; s1], 1, []);
-  case "s3"
+  case "s2"
     n=960;
     s0 = sin(2*pi*[0:n-1]*50/fs);
     s1 = sin(2*pi*[0:n-1]*1000/fs);

@@ -16,8 +16,7 @@ static const struct {
 	const int16_t * end;
 } tables [SAMPLE_TABLE_END] = {
 	{ .start = s1_tbl, .end = s1_tbl_end },
-	{ .start = s2_tbl, .end = s2_tbl_end },
-	{ .start = s3_tbl, .end = s3_tbl_end }
+	{ .start = s2_tbl, .end = s2_tbl_end }
 };
 
 /*
@@ -284,9 +283,9 @@ static uint16_t resample_ringbuf(void *dst)
 /*
  */
 
-static const int16_t *table_start = s2_tbl;
-static const int16_t *table_end = s2_tbl_end;
-static const int16_t *table = s2_tbl;
+static const int16_t *table_start = s1_tbl;
+static const int16_t *table_end = s1_tbl_end;
+static const int16_t *table = s1_tbl;
 
 static uint16_t resample_table(void *dst)
 {
@@ -335,15 +334,8 @@ int main(int ac, char **av)
 	int i, fd, pass = NPASS;
 	off_t sum = 0;
 
-	debugf("table s1: %p-%p size[w]: %ld\n"
-	       "table s2: %p-%p size[w]: %ld\n"
-	       "table s3: %p-%p size[w]: %ld\n",
-	       s1_tbl, s1_tbl_end, TABLESIZE(s1),
-	       s2_tbl, s2_tbl_end, TABLESIZE(s2),
-	       s3_tbl, s3_tbl_end, TABLESIZE(s3));
-
-	table = table_start = s2_tbl;
-	table_end = s2_tbl_end;
+	table = table_start = s1_tbl;
+	table_end = s1_tbl_end;
 
 	fd = open("tool.u8", O_RDWR|O_CREAT|O_TRUNC, 0644);
 	lseek(fd, BUFSZ - 1, SEEK_SET);

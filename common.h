@@ -86,7 +86,6 @@ typedef enum {
 typedef enum {
 	SAMPLE_TABLE_S1,
 	SAMPLE_TABLE_S2,
-	SAMPLE_TABLE_S3,
 	SAMPLE_TABLE_END
 } sample_table;
 

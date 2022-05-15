@@ -62,9 +62,6 @@ void usart1_isr(void)
 		case 's':
 			select_table(SAMPLE_TABLE_S2);
 			break;
-		case 'd':
-			select_table(SAMPLE_TABLE_S3);
-			break;
 		case 'q':
 			e.state = STATE_DRAIN;
 			break;

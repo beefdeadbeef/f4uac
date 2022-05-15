@@ -48,11 +48,6 @@ __asm__ (
 	".incbin \"s2.s16\"\n"
 	".global s2_tbl_end\n"
 	"s2_tbl_end:\n"
-	".global s3_tbl\n"
-	"s3_tbl:\n"
-	".incbin \"s3.s16\"\n"
-	".global s3_tbl_end\n"
-	"s3_tbl_end:\n"
 	".popsection\n"
 	);
 
