@@ -84,7 +84,6 @@ uint16_t rb_put(void *src, uint16_t len)
 #define PHASELENGTH (NUMTAPS / UPSAMPLE)
 #define VOLSTEPS (sizeof(vl)/sizeof(vl[0]))
 
-#define FX8  (float)(1U<<7)
 #define FX16 (float)(1U<<15)
 #define FX24 (float)(1U<<23)
 #define FX32 (float)(1U<<31)
@@ -202,6 +201,7 @@ static void upsample(float *dst, const int16_t *src)
 }
 
 #define ORDER 4
+#define QF (1U << (PWM_SHIFT - 1))
 const float abg[] = { .0157f, .1359f, .514f, .3609f, .003f, .0018f };
 
 __attribute__((optimize (3)))
@@ -218,9 +218,9 @@ static uint32_t ns(const float *src, float *z)
 	z[2] += z[1] + *x++ * sum + *g * z[3];
 	z[3] += z[2] + *x * sum;
 	sum += z[3] + z[4];
-	z[4] = (p = __ssat((int32_t)(sum * FX8), 8)) / FX8;
+	z[4] = (p = __ssat((int32_t)(sum * QF), PWM_SHIFT)) / (float)QF;
 
-	return (1U<<7) + p;
+	return QF + p;
 }
 
 __attribute__((optimize (3)))

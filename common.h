@@ -20,7 +20,7 @@
 /*
  * upsampling ratio
  */
-#define UPSAMPLE_SHIFT 3
+#define UPSAMPLE_SHIFT 4
 #define UPSAMPLE (1 << UPSAMPLE_SHIFT)
 
 /*
@@ -31,7 +31,7 @@
 /*
  * pwm width
  */
-#define PWM_SHIFT 8
+#define PWM_SHIFT 7
 #define PWM_PERIOD (1 << PWM_SHIFT)
 
 /*
