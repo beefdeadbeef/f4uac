@@ -27,7 +27,6 @@ LDLIBS	= -l$(LIBNAME) -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 #---------------------------------------------------------------
 BINARY	= f4uac
 TABLES	= tables.h
-SAMPLES = s1.s16 s2.s16
 OBJS	= main.o pwm.o usbd.o trace.o trace_stdio.o dsp.o
 
 all:	lib $(BINARY).elf $(BINARY).bin
@@ -35,13 +34,10 @@ all:	lib $(BINARY).elf $(BINARY).bin
 lib:
 	make -C $(OPENCM3) TARGETS=stm32/f4 lib
 
-%.s16:	s16.m
-	@$(OCTAVE) -qf $< $* 48000
-
 $(TABLES): %.h: %.m
 	@$(OCTAVE) -qf $< $@
 
-dsp.o:	$(TABLES) $(SAMPLES)
+dsp.o:	$(TABLES)
 
 %.elf:	$(OBJS)
 	$(CC) $^ $(LDFLAGS) $(LDLIBS) -o $@
@@ -49,7 +45,7 @@ dsp.o:	$(TABLES) $(SAMPLES)
 %.bin: %.elf
 	$(OBJCOPY) -Obinary $< $@
 
-dsp:	dsp.c $(TABLES) $(SAMPLES)
+dsp:	dsp.c $(TABLES)
 	$(HOSTCC) -g -Wall -O0 -DKICKSTART $< -o $@
 
 -include *.d

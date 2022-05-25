@@ -1,4 +1,4 @@
-/* -*- mode: c; mode: folding; tab-width: 8 -*-
+/* -*- mode: c; tab-width: 8 -*-
  *  SPDX-License-Identifier: MIT
  *  Copyright (C) 2021-2022 Sergey Bolshakov <beefdeadbeef@gmail.com>
  */
@@ -11,13 +11,14 @@
 #include "common.h"
 
 #define PWM_DEADTIME 4
+#define DMABUFSZ (NCHANNELS * NFRAMES)
 
-static uint32_t frames[2*NFRAMES];
+static uint32_t frames[2 * DMABUFSZ];
 
 void *pframe(frame_type frame)
 {
 	return (frame == dma_get_target(DMA2, DMA_STREAM5)) ?
-		frames: &frames[NFRAMES];
+		frames: &frames[DMABUFSZ];
 }
 
 static void timer_tim1_setup_ocs(enum tim_oc_id oc, enum tim_oc_id ocn)
@@ -50,10 +51,10 @@ void pwm()
 	dma_enable_memory_increment_mode(DMA2, DMA_STREAM5);
 	dma_enable_double_buffer_mode(DMA2, DMA_STREAM5);
 	dma_set_transfer_mode(DMA2, DMA_STREAM5, DMA_SxCR_DIR_MEM_TO_PERIPHERAL);
-	dma_set_number_of_data(DMA2, DMA_STREAM5, NFRAMES);
+	dma_set_number_of_data(DMA2, DMA_STREAM5, DMABUFSZ);
 	dma_set_peripheral_address(DMA2, DMA_STREAM5, (uint32_t)&TIM_DMAR(TIM1));
 	dma_set_memory_address(DMA2, DMA_STREAM5, (uint32_t)frames);
-	dma_set_memory_address_1(DMA2, DMA_STREAM5, (uint32_t)&frames[NFRAMES]);
+	dma_set_memory_address_1(DMA2, DMA_STREAM5, (uint32_t)&frames[DMABUFSZ]);
 	dma_enable_transfer_complete_interrupt(DMA2, DMA_STREAM5);
 	dma_enable_stream(DMA2, DMA_STREAM5);
 	nvic_enable_irq(NVIC_DMA2_STREAM5_IRQ);

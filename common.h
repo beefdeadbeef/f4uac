@@ -13,37 +13,26 @@
 #define PLLO 96000000UL
 
 /*
- * we do things in chunks that size (samples)
+ * we're stereo ffs
  */
-#define NSAMPLES 128
+#define NCHANNELS       2
 
 /*
- * upsampling ratio
+ * number of audio frames after upsampling, must be 2^(4+N)
  */
-#define UPSAMPLE_SHIFT 4
-#define UPSAMPLE (1 << UPSAMPLE_SHIFT)
-
-/*
- * number of samples after resampling
- */
-#define NFRAMES (NSAMPLES * UPSAMPLE)
+#define NFRAMES_SHIFT   10
+#define NFRAMES	        (1 << NFRAMES_SHIFT)
 
 /*
  * pwm width
  */
-#define PWM_SHIFT 7
-#define PWM_PERIOD (1 << PWM_SHIFT)
-
-/*
- * resulting audio clock
- */
-#define AUDIO_CLOCK_SHIFT (UPSAMPLE_SHIFT + PWM_SHIFT)
-#define AUDIO_CLOCK (PLLO >> AUDIO_CLOCK_SHIFT)
+#define PWM_SHIFT 	7
+#define PWM_PERIOD 	(1 << PWM_SHIFT)
 
 /*
  * circular buffer size, must be 2^N
  */
-#define RINGBUF_SHIFT	11
+#define RINGBUF_SHIFT	12
 #define RBSIZE		(1 << RINGBUF_SHIFT)
 
 /*
@@ -97,8 +86,26 @@ typedef enum {
 	SAMPLE_FORMAT_S16,
 	SAMPLE_FORMAT_S24,
 	SAMPLE_FORMAT_S32,
-	SAMPLE_FORMAT_F32
+	SAMPLE_FORMAT_F32,
+	SAMPLE_FORMAT_S16_96,
+	SAMPLE_FORMAT_S24_96
 } sample_fmt;
+
+/*
+ * frame size, bytes
+ */
+static inline uint16_t framesize(sample_fmt fmt)
+{
+	return (const uint8_t []) {
+		2 * NCHANNELS,	/* SAMPLE_FORMAT_NONE */
+		2 * NCHANNELS,	/* SAMPLE_FORMAT_S16 */
+		3 * NCHANNELS,	/* SAMPLE_FORMAT_S24 */
+		4 * NCHANNELS,	/* SAMPLE_FORMAT_S32 */
+		4 * NCHANNELS,	/* SAMPLE_FORMAT_F32 */
+		2 * NCHANNELS,	/* SAMPLE_FORMAT_S16_96 */
+		3 * NCHANNELS	/* SAMPLE_FORMAT_S24_96 */
+	} [fmt];
+}
 
 /*
  *
@@ -126,29 +133,3 @@ typedef enum  {
 	UAC_GET_MAX,
 	UAC_GET_RES
 } uac_rq;
-
-/*
- * circular buffer, c/p from linux/circ_buf.h
- */
-
-/* Return count in buffer. */
-#define CIRC_CNT(head,tail,size) (((head) - (tail)) & ((size)-1))
-
-/* Return space available, 0..size-1.  We always leave one free char
-   as a completely full buffer has head == tail, which is the same as
-   empty.  */
-#define CIRC_SPACE(head,tail,size) CIRC_CNT((tail),((head)+1),(size))
-
-/* Return count up to the end of the buffer.  Carefully avoid
-   accessing head and tail more than once, so they can change
-   underneath us without returning inconsistent results.  */
-#define CIRC_CNT_TO_END(head,tail,size) \
-        ({int end = (size) - (tail); \
-          int n = ((head) + end) & ((size)-1); \
-          n < end ? n : end;})
-
-/* Return space available up to the end of the buffer.  */
-#define CIRC_SPACE_TO_END(head,tail,size) \
-        ({int end = (size) - 1 - (head); \
-          int n = (end + (tail)) & ((size)-1); \
-          n <= end ? n : end+1;})

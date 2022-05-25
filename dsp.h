@@ -35,29 +35,3 @@ static inline int32_t __ssat(int32_t val, uint32_t sat)
 }
 
 #endif
-
-__asm__ (
-	".pushsection .rodata,\"a\"\n"
-	".global s1_tbl\n"
-	" s1_tbl:\n"
-	".incbin \"s1.s16\"\n"
-	".global s1_tbl_end\n"
-	"s1_tbl_end:\n"
-	".global s2_tbl\n"
-	" s2_tbl:\n"
-	".incbin \"s2.s16\"\n"
-	".global s2_tbl_end\n"
-	"s2_tbl_end:\n"
-	".popsection\n"
-	);
-
-extern const int16_t s1_tbl[];
-extern const int16_t s1_tbl_end[];
-
-extern const int16_t s2_tbl[];
-extern const int16_t s2_tbl_end[];
-
-extern const int16_t s3_tbl[];
-extern const int16_t s3_tbl_end[];
-
-#define TABLESIZE(x) (x##_tbl_end - x##_tbl)
