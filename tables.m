@@ -3,14 +3,14 @@
 pkg load signal;
 
 %---------------------------------------------------------------
-VOLSTEPS=32;
-
-%---------------------------------------------------------------
 HEADER = "\
 /*\n\
  */\n\
-\n\
 #define VOLSTEPS %d\n\
+\n\
+const int16_t vl[%d] = {\n\
+%s\
+};\n\
 \n\
 ";
 
@@ -110,13 +110,26 @@ function s = sfir(fmt, e, n, v)
 endfunction
 
 %---------------------------------------------------------------
+VOLSTEPS=64;
+ATTN = 10^(-3/20);
+
+function x = db(x)
+  x = 20 * log10(x);
+endfunction
+
+function x = vol(x)
+  x = exp(log(1000) * x) / 1000;
+endfunction
+
+VOL = vol([1:-1/(VOLSTEPS-1):0]);
+
+%---------------------------------------------------------------
 av = argv();
 fd = fopen(av{1}, "w");
 
-vol = 10 .^ (-[3:VOLSTEPS+2] / 20);
-
-fprintf(fd, HEADER, VOLSTEPS);
-fprintf(fd, "%s\n", sfir(FIR, 4, 32, vol));
-fprintf(fd, "%s\n", sfir(FIR, 3, 16, vol));
+fprintf(fd, HEADER, VOLSTEPS, VOLSTEPS,
+        sprintf(["\t%12d,\n"], fix(256 * db(VOL))));
+fprintf(fd, "%s\n", sfir(FIR, 4, 32, ATTN * VOL));
+fprintf(fd, "%s\n", sfir(FIR, 3, 16, ATTN * VOL));
 fprintf(fd, "%s\n", sample(SAMPLE, 1, 48000));
 fprintf(fd, "%s\n", sample(SAMPLE, 2, 48000));

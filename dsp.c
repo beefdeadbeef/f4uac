@@ -120,28 +120,28 @@ uint16_t rb_put(void *src, uint16_t len)
 /*
  *
  */
-static volatile struct {
-	uint8_t level;
-	bool seen;
-} volume;
+static volatile uint16_t volidx;
 
 void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 {
 	(void) chan;
 	switch (req) {
 	case UAC_SET_CUR:
-		volume.level = - (*val >> 8);
-		volume.seen = false;
+	{
+		uint16_t i = 0;
+		while (i < VOLSTEPS && vl[i++] > *val);
+		volidx = i == VOLSTEPS ? VOLSTEPS - 1 : i;
 		break;
+	}
 	case UAC_SET_MIN:
 	case UAC_SET_MAX:
 	case UAC_SET_RES:
 		break;
 	case UAC_GET_CUR:
-		*val =  - (volume.level << 8);
+		*val =  vl[volidx];
 		break;
 	case UAC_GET_MIN:
-		*val = - (((int16_t)VOLSTEPS - 1) * 256);
+		*val = vl[VOLSTEPS - 1];
 		break;
 	case UAC_GET_MAX:
 		*val = 0;
@@ -271,10 +271,10 @@ static void upsample(float *dst, const float *src)
 
 	if (format.f8) {
 		nframes = NFRAMES >> UPSAMPLE_SHIFT_8;
-		taps = hc8 + NUMTAPS(8) * volume.level;
+		taps = hc8 + NUMTAPS(8) * volidx;
 	} else {
 		nframes = NFRAMES >> UPSAMPLE_SHIFT_16;
-		taps = hc16 + NUMTAPS(16) * volume.level;
+		taps = hc16 + NUMTAPS(16) * volidx;
 	}
 
 	while (nframes--) {
