@@ -86,10 +86,13 @@ typedef enum {
 	SAMPLE_FORMAT_S16,
 	SAMPLE_FORMAT_S24,
 	SAMPLE_FORMAT_S32,
-	SAMPLE_FORMAT_F32,
-	SAMPLE_FORMAT_S16_96,
-	SAMPLE_FORMAT_S24_96
+	SAMPLE_FORMAT_F32
 } sample_fmt;
+
+typedef enum {
+	SAMPLE_RATE_48000 = 48000,
+	SAMPLE_RATE_96000 = 96000
+} sample_rate;
 
 /*
  * frame size, bytes
@@ -97,13 +100,11 @@ typedef enum {
 static inline uint16_t framesize(sample_fmt fmt)
 {
 	return (const uint8_t []) {
-		2 * NCHANNELS,	/* SAMPLE_FORMAT_NONE */
+		4 * NCHANNELS,	/* SAMPLE_FORMAT_NONE */
 		2 * NCHANNELS,	/* SAMPLE_FORMAT_S16 */
 		3 * NCHANNELS,	/* SAMPLE_FORMAT_S24 */
 		4 * NCHANNELS,	/* SAMPLE_FORMAT_S32 */
-		4 * NCHANNELS,	/* SAMPLE_FORMAT_F32 */
-		2 * NCHANNELS,	/* SAMPLE_FORMAT_S16_96 */
-		3 * NCHANNELS	/* SAMPLE_FORMAT_S24_96 */
+		4 * NCHANNELS	/* SAMPLE_FORMAT_F32 */
 	} [fmt];
 }
 

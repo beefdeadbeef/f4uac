@@ -37,6 +37,11 @@ static const struct usb_device_descriptor dev = {
 #define ISO_OUT_ENDP_ADDR 0x01
 #define ISO_IN_ENDP_ADDR 0x81
 
+struct usb_audio_format_type1_descriptor_2freq {
+        struct usb_audio_format_type1_descriptor_head head;
+        struct usb_audio_format_discrete_sampling_frequency freqs[2];
+} __attribute__((packed));
+
 static const struct {
 	struct usb_config_descriptor cdesc;
 
@@ -52,14 +57,14 @@ static const struct {
 	struct usb_interface_descriptor audio_streaming_iface_1;
 	struct usb_audio_stream_audio_endpoint_descriptor audio_streaming_cs_ep_desc_1;
 	struct usb_audio_stream_interface_descriptor audio_cs_streaming_iface_desc_1;
-	struct usb_audio_format_type1_descriptor_1freq audio_type1_format_desc_1;
+	struct usb_audio_format_type1_descriptor_2freq audio_type1_format_desc_1;
 	struct usb_audio_stream_endpoint_descriptor isochronous_ep_1;
 	struct usb_audio_stream_endpoint_descriptor synch_ep_1;
 
 	struct usb_interface_descriptor audio_streaming_iface_2;
 	struct usb_audio_stream_audio_endpoint_descriptor audio_streaming_cs_ep_desc_2;
 	struct usb_audio_stream_interface_descriptor audio_cs_streaming_iface_desc_2;
-	struct usb_audio_format_type1_descriptor_1freq audio_type1_format_desc_2;
+	struct usb_audio_format_type1_descriptor_2freq audio_type1_format_desc_2;
 	struct usb_audio_stream_endpoint_descriptor isochronous_ep_2;
 	struct usb_audio_stream_endpoint_descriptor synch_ep_2;
 
@@ -76,20 +81,6 @@ static const struct {
 	struct usb_audio_format_type1_descriptor_1freq audio_type1_format_desc_4;
 	struct usb_audio_stream_endpoint_descriptor isochronous_ep_4;
 	struct usb_audio_stream_endpoint_descriptor synch_ep_4;
-
-	struct usb_interface_descriptor audio_streaming_iface_5;
-	struct usb_audio_stream_audio_endpoint_descriptor audio_streaming_cs_ep_desc_5;
-	struct usb_audio_stream_interface_descriptor audio_cs_streaming_iface_desc_5;
-	struct usb_audio_format_type1_descriptor_1freq audio_type1_format_desc_5;
-	struct usb_audio_stream_endpoint_descriptor isochronous_ep_5;
-	struct usb_audio_stream_endpoint_descriptor synch_ep_5;
-
-	struct usb_interface_descriptor audio_streaming_iface_6;
-	struct usb_audio_stream_audio_endpoint_descriptor audio_streaming_cs_ep_desc_6;
-	struct usb_audio_stream_interface_descriptor audio_cs_streaming_iface_desc_6;
-	struct usb_audio_format_type1_descriptor_1freq audio_type1_format_desc_6;
-	struct usb_audio_stream_endpoint_descriptor isochronous_ep_6;
-	struct usb_audio_stream_endpoint_descriptor synch_ep_6;
 
 } __attribute__((packed)) config = {
 	.cdesc = {
@@ -199,7 +190,7 @@ static const struct {
 		.bLength = sizeof(struct usb_audio_stream_audio_endpoint_descriptor),
 		.bDescriptorType = USB_AUDIO_DT_CS_ENDPOINT,
 		.bDescriptorSubtype = 1, /* EP_GENERAL */
-		.bmAttributes = 0,
+		.bmAttributes = 1,
 		.bLockDelayUnits = 0x02, /* PCM samples */
 		.wLockDelay = 0x0000,
 	},
@@ -213,18 +204,21 @@ static const struct {
 	},
 	.audio_type1_format_desc_1 = {
 		.head = {
-			.bLength = sizeof(struct usb_audio_format_type1_descriptor_1freq),
+			.bLength = sizeof(struct usb_audio_format_type1_descriptor_2freq),
 			.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
 			.bDescriptorSubtype = 2,
 			.bFormatType = 1,
 			.bNrChannels = 2,
 			.bSubFrameSize = 2,
 			.bBitResolution = 16,
-			.bSamFreqType = 1,
+			.bSamFreqType = 2,
 		},
 		.freqs = {
 			{
 				.tSamFreq = 48000,
+			},
+			{
+				.tSamFreq = 96000,
 			}
 		},
 	},
@@ -264,7 +258,7 @@ static const struct {
 		.bLength = sizeof(struct usb_audio_stream_audio_endpoint_descriptor),
 		.bDescriptorType = USB_AUDIO_DT_CS_ENDPOINT,
 		.bDescriptorSubtype = 1, /* EP_GENERAL */
-		.bmAttributes = 0,
+		.bmAttributes = 1,
 		.bLockDelayUnits = 0x02, /* PCM samples */
 		.wLockDelay = 0x0000,
 	},
@@ -278,18 +272,21 @@ static const struct {
 	},
 	.audio_type1_format_desc_2 = {
 		.head = {
-			.bLength = sizeof(struct usb_audio_format_type1_descriptor_1freq),
+			.bLength = sizeof(struct usb_audio_format_type1_descriptor_2freq),
 			.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
 			.bDescriptorSubtype = 2,
 			.bFormatType = 1,
 			.bNrChannels = 2,
 			.bSubFrameSize = 3,
 			.bBitResolution = 24,
-			.bSamFreqType = 1,
+			.bSamFreqType = 2,
 		},
 		.freqs = {
 			{
 				.tSamFreq = 48000,
+			},
+			{
+				.tSamFreq = 96000,
 			}
 		},
 	},
@@ -442,136 +439,6 @@ static const struct {
 		.bInterval = 1,
 		.bRefresh = SOF_RATE,
 		.bSynchAddress = 0,
-	},
-
-	.audio_streaming_iface_5 = {
-		.bLength = USB_DT_INTERFACE_SIZE,
-		.bDescriptorType = USB_DT_INTERFACE,
-		.bInterfaceNumber = 1,
-		.bAlternateSetting = 5,
-		.bNumEndpoints = 2,
-		.bInterfaceClass = USB_CLASS_AUDIO,
-		.bInterfaceSubClass = USB_AUDIO_SUBCLASS_AUDIOSTREAMING,
-		.bInterfaceProtocol = 0,
-		.iInterface = 0,
-	},
-	.audio_streaming_cs_ep_desc_5 = {
-		.bLength = sizeof(struct usb_audio_stream_audio_endpoint_descriptor),
-		.bDescriptorType = USB_AUDIO_DT_CS_ENDPOINT,
-		.bDescriptorSubtype = 1, /* EP_GENERAL */
-		.bmAttributes = 0,
-		.bLockDelayUnits = 0x02, /* PCM samples */
-		.wLockDelay = 0x0000,
-	},
-	.audio_cs_streaming_iface_desc_5 = {
-		.bLength = sizeof(struct usb_audio_stream_interface_descriptor),
-		.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
-		.bDescriptorSubtype = 1,
-		.bTerminalLink = 1,
-		.bDelay = 1,
-		.wFormatTag = 1,
-	},
-	.audio_type1_format_desc_5 = {
-		.head = {
-			.bLength = sizeof(struct usb_audio_format_type1_descriptor_1freq),
-			.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
-			.bDescriptorSubtype = 2,
-			.bFormatType = 1,
-			.bNrChannels = 2,
-			.bSubFrameSize = 2,
-			.bBitResolution = 16,
-			.bSamFreqType = 1,
-		},
-		.freqs = {
-			{
-				.tSamFreq = 96000,
-			}
-		},
-	},
-	.isochronous_ep_5 = {
-		.bLength = USB_DT_ENDPOINT_SIZE + 2,
-		.bDescriptorType = USB_DT_ENDPOINT,
-		.bEndpointAddress = ISO_OUT_ENDP_ADDR,
-		.bmAttributes = USB_ENDPOINT_ATTR_ISOCHRONOUS | USB_ENDPOINT_ATTR_ASYNC,
-		.wMaxPacketSize = ISO_PACKET_SIZE,
-		.bInterval = 1,
-		.bRefresh = 0,
-		.bSynchAddress = ISO_IN_ENDP_ADDR,
-	},
-	.synch_ep_5 = {
-		.bLength = USB_DT_ENDPOINT_SIZE + 2,
-		.bDescriptorType = USB_DT_ENDPOINT,
-		.bEndpointAddress = ISO_IN_ENDP_ADDR,
-		.bmAttributes = USB_ENDPOINT_ATTR_ISOCHRONOUS | USB_ENDPOINT_ATTR_FEEDBACK,
-		.wMaxPacketSize = ISO_SYNC_PACKET_SIZE,
-		.bInterval = 1,
-		.bRefresh = SOF_RATE,
-		.bSynchAddress = 0,
-	},
-
-	.audio_streaming_iface_6 = {
-		.bLength = USB_DT_INTERFACE_SIZE,
-		.bDescriptorType = USB_DT_INTERFACE,
-		.bInterfaceNumber = 1,
-		.bAlternateSetting = 6,
-		.bNumEndpoints = 2,
-		.bInterfaceClass = USB_CLASS_AUDIO,
-		.bInterfaceSubClass = USB_AUDIO_SUBCLASS_AUDIOSTREAMING,
-		.bInterfaceProtocol = 0,
-		.iInterface = 0,
-	},
-	.audio_streaming_cs_ep_desc_6 = {
-		.bLength = sizeof(struct usb_audio_stream_audio_endpoint_descriptor),
-		.bDescriptorType = USB_AUDIO_DT_CS_ENDPOINT,
-		.bDescriptorSubtype = 1, /* EP_GENERAL */
-		.bmAttributes = 0,
-		.bLockDelayUnits = 0x02, /* PCM samples */
-		.wLockDelay = 0x0000,
-	},
-	.audio_cs_streaming_iface_desc_6 = {
-		.bLength = sizeof(struct usb_audio_stream_interface_descriptor),
-		.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
-		.bDescriptorSubtype = 1,
-		.bTerminalLink = 1,
-		.bDelay = 1,
-		.wFormatTag = 1,
-	},
-	.audio_type1_format_desc_6 = {
-		.head = {
-			.bLength = sizeof(struct usb_audio_format_type1_descriptor_1freq),
-			.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
-			.bDescriptorSubtype = 2,
-			.bFormatType = 1,
-			.bNrChannels = 2,
-			.bSubFrameSize = 3,
-			.bBitResolution = 24,
-			.bSamFreqType = 1,
-		},
-		.freqs = {
-			{
-				.tSamFreq = 96000,
-			}
-		},
-	},
-	.isochronous_ep_6 = {
-		.bLength = USB_DT_ENDPOINT_SIZE + 2,
-		.bDescriptorType = USB_DT_ENDPOINT,
-		.bEndpointAddress = ISO_OUT_ENDP_ADDR,
-		.bmAttributes = USB_ENDPOINT_ATTR_ISOCHRONOUS | USB_ENDPOINT_ATTR_ASYNC,
-		.wMaxPacketSize = ISO_PACKET_SIZE,
-		.bInterval = 1,
-		.bRefresh = 0,
-		.bSynchAddress = ISO_IN_ENDP_ADDR,
-	},
-	.synch_ep_6 = {
-		.bLength = USB_DT_ENDPOINT_SIZE + 2,
-		.bDescriptorType = USB_DT_ENDPOINT,
-		.bEndpointAddress = ISO_IN_ENDP_ADDR,
-		.bmAttributes = USB_ENDPOINT_ATTR_ISOCHRONOUS | USB_ENDPOINT_ATTR_FEEDBACK,
-		.wMaxPacketSize = ISO_SYNC_PACKET_SIZE,
-		.bInterval = 1,
-		.bRefresh = SOF_RATE,
-		.bSynchAddress = 0,
 	}
 };
 
@@ -581,7 +448,7 @@ static const struct usb_config_descriptor *configs[] = {
 
 uint8_t usbd_control_buffer[192];
 
-extern void rb_setup(sample_fmt format);
+extern void rb_setup(sample_fmt format, sample_rate freq);
 extern uint16_t rb_put(void *src, uint16_t len);
 extern void cmute(uac_rq req, uint8_t *val);
 extern void cvolume(uac_rq req, uint8_t ch, int16_t *val);
@@ -591,6 +458,9 @@ static usbd_device * usbdev;
 static uint32_t delta;
 static uint32_t total;
 static uint16_t framelen;
+static sample_fmt format;
+static sample_rate freq = SAMPLE_RATE_48000;
+
 static struct {
 	bool rts;
 	bool cts;
@@ -665,12 +535,14 @@ static enum usbd_request_return_codes control_cb(
 	if(req->bmRequestType == USB_REQ_TYPE_INTERFACE &&
 	   req->bRequest == USB_REQ_SET_INTERFACE &&
 	   req->wIndex == 1) {	/* wIndex: iface # */
-		framelen = framesize(req->wValue);
-		rb_setup(req->wValue); /* wValue: alt setting # */
+		format = req->wValue; /* wValue: alt setting # */
+		framelen = framesize(format);
+		rb_setup(format, freq);
 		if (req->wValue) {
 			e.state = STATE_FILL;
 			fb.rts = fb.cts = true;
 		} else {
+			freq = SAMPLE_RATE_48000;
 			e.state = total ? STATE_DRAIN : STATE_CLOSED;
 			fb.rts = fb.cts = false;
 			total = 0;
@@ -708,6 +580,42 @@ static enum usbd_request_return_codes control_cs_cb(
 	}
 }
 
+static enum usbd_request_return_codes control_cs_ep_cb(
+	usbd_device *usbd_dev,
+	struct usb_setup_data *req,
+	uint8_t **buf,
+	uint16_t *len,
+	usbd_control_complete_callback *complete)
+{
+	(void) usbd_dev;
+	(void) complete;
+	(void) len;
+
+	debugf("bRequest: %02x wValue: %04x wIndex: %04x len: %d data=%02x\n",
+	       req->bRequest, req->wValue, req->wIndex, *len, *buf[0]);
+
+	/* wValue: 0100 sampling freq control, wIndex: ep address */
+	if (req->wValue == 0x100 && req->wIndex == ISO_OUT_ENDP_ADDR) {
+		struct __attribute__((packed)) {
+			uint32_t freq : 24;
+		} *r = (typeof(r))*buf;
+
+		switch (req->bRequest) {
+		case UAC_SET_CUR:
+			rb_setup(format, freq = r->freq);
+			break;
+		case UAC_GET_CUR:
+			r->freq = freq;
+		default:
+			break;
+		}
+
+		return USBD_REQ_HANDLED;
+	}
+
+	return USBD_REQ_NOTSUPP;
+}
+
 static void usbd_set_config(usbd_device *usbd_dev, uint16_t wValue)
 {
 	(void)wValue;
@@ -739,6 +647,13 @@ static void usbd_set_config(usbd_device *usbd_dev, uint16_t wValue)
 		USB_REQ_TYPE_CLASS | USB_REQ_TYPE_INTERFACE,
 		USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
 		control_cs_cb);
+
+	usbd_register_control_callback(
+		usbd_dev,
+		USB_REQ_TYPE_CLASS | USB_REQ_TYPE_ENDPOINT,
+		USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
+		control_cs_ep_cb);
+
 }
 
 void usbd(void)

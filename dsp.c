@@ -67,19 +67,14 @@ static struct {
 	uint16_t chunksize;
 } format;
 
-static inline bool fmt96(sample_fmt fmt)
-{
-	return fmt == SAMPLE_FORMAT_S16_96 || fmt == SAMPLE_FORMAT_S24_96;
-}
-
 static void reset_zstate();
 
-void rb_setup(sample_fmt fmt)
+void rb_setup(sample_fmt fmt, sample_rate rate)
 {
 	rb.u32 = 0;
 
 	format.fmt = fmt;
-	format.f8 = fmt96(fmt);
+	format.f8 = rate == SAMPLE_RATE_96000;
 	format.nframes = format.f8 ?
 		NFRAMES >> UPSAMPLE_SHIFT_8 :
 		NFRAMES >> UPSAMPLE_SHIFT_16;
@@ -248,11 +243,9 @@ static float *reframe(float *dst, const void *src, uint16_t len)
 		return reframe_s32(dst, src, nframes);
 
 	case SAMPLE_FORMAT_S24:
-	case SAMPLE_FORMAT_S24_96:
 		return reframe_s24(dst, src, nframes);
 
 	case SAMPLE_FORMAT_S16:
-	case SAMPLE_FORMAT_S16_96:
 		return reframe_s16(dst, src, nframes);
 
 	case SAMPLE_FORMAT_NONE:
