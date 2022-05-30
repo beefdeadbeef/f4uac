@@ -153,6 +153,9 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 	       req, chan, *val, volume.level);
 }
 
+#pragma GCC push_options
+#pragma GCC optimize 3
+
 /*
  * FIR filters
  *
@@ -160,7 +163,6 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
  *        8 :      16 :        2 :       2
  *       16 :      32 :        2 :       2
  */
-
 #define NUMTAPS(x)  (NUMTAPS##x)
 #define UPSAMPLE(x) (1U << UPSAMPLE_SHIFT_##x)
 #define PHASELEN(x) (NUMTAPS(x) >> UPSAMPLE_SHIFT_##x)
@@ -233,7 +235,6 @@ static inline float *reframe_s16(float *dst, const int16_t *src, uint16_t nframe
 	return dst;
 }
 
-__attribute__((optimize (3)))
 static float *reframe(float *dst, const void *src, uint16_t len)
 {
 	uint16_t nframes = len / format.framesize;
@@ -260,7 +261,6 @@ static float *reframe(float *dst, const void *src, uint16_t len)
 	return dst;
 }
 
-__attribute__((optimize (3)))
 static void upsample(float *dst, const float *src)
 {
 	const float *taps;
@@ -343,7 +343,6 @@ static inline uint32_t ns(const float *src, float *z)
 	return QF + p;
 }
 
-__attribute__((optimize (3)))
 static void sigmadelta(uint32_t *dst, const float *src)
 {
 	for (uint16_t nframes = NFRAMES; nframes; nframes--) {
@@ -352,10 +351,6 @@ static void sigmadelta(uint32_t *dst, const float *src)
 	}
 }
 
-/*
- *
- */
-__attribute__((optimize (3)))
 static uint16_t resample(uint32_t *dst, const float *src)
 {
 	float samples[NCHANNELS * NFRAMES];
@@ -366,6 +361,11 @@ static uint16_t resample(uint32_t *dst, const float *src)
 	return NCHANNELS * NFRAMES * 4;
 }
 
+#pragma GCC pop_options
+
+/*
+ *
+ */
 #ifndef KICKSTART
 
 static uint16_t resample_ringbuf(void *dst)
