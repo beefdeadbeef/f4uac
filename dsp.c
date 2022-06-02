@@ -65,8 +65,10 @@ static struct {
 	uint16_t nframes;
 	uint16_t framesize;
 	uint16_t chunksize;
+	const float *taps;
 } format;
 
+static uint16_t volidx;
 static void reset_zstate();
 
 void rb_setup(sample_fmt fmt, sample_rate rate)
@@ -80,6 +82,9 @@ void rb_setup(sample_fmt fmt, sample_rate rate)
 		NFRAMES >> UPSAMPLE_SHIFT_16;
 	format.framesize = framesize(fmt);
 	format.chunksize = format.framesize * format.nframes;
+	format.taps = format.f8 ?
+		hc8 + NUMTAPS8 * volidx :
+		hc16 + NUMTAPS16 * volidx;
 
 	reset_zstate();
 }
@@ -115,8 +120,6 @@ uint16_t rb_put(void *src, uint16_t len)
 /*
  *
  */
-static volatile uint16_t volidx;
-
 void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 {
 	(void) chan;
@@ -126,6 +129,9 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 		uint16_t i = 0;
 		while (i < VOLSTEPS && vl[i++] > *val);
 		volidx = i == VOLSTEPS ? VOLSTEPS - 1 : i;
+		format.taps = format.f8 ?
+			hc8 + NUMTAPS8 * volidx :
+			hc16 + NUMTAPS16 * volidx;
 		break;
 	}
 	case UAC_SET_MIN:
@@ -158,11 +164,10 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
  *        8 :      16 :        2 :       2
  *       16 :      32 :        2 :       2
  */
-#define NUMTAPS(x)  (NUMTAPS##x)
 #define UPSAMPLE(x) (1U << UPSAMPLE_SHIFT_##x)
-#define PHASELEN(x) (NUMTAPS(x) >> UPSAMPLE_SHIFT_##x)
-#define NSAMPLES(x) ((NCHANNELS * NFRAMES) >> UPSAMPLE_SHIFT_##x)
+#define PHASELEN(x) (NUMTAPS##x >> UPSAMPLE_SHIFT_##x)
 #define BACKLOG(x)  (NCHANNELS * (PHASELEN(x) - 1))
+#define NSAMPLES(x) ((NCHANNELS * NFRAMES) >> UPSAMPLE_SHIFT_##x)
 
 #if (PHASELEN(8) != PHASELEN(16)) || (BACKLOG(8) != BACKLOG(16))
 #error PHASELEN and BACKLOG must match
@@ -256,22 +261,13 @@ static float *reframe(float *dst, const void *src, uint16_t len)
 
 static void upsample(float *dst, const float *src)
 {
-	const float *taps;
 	static float state[STATELEN];
 	float *samples = &state[BACKLOG(8)];
 	float *backlog = state;
-	uint16_t i, nframes;
-
-	if (format.f8) {
-		nframes = NFRAMES >> UPSAMPLE_SHIFT_8;
-		taps = hc8 + NUMTAPS(8) * volidx;
-	} else {
-		nframes = NFRAMES >> UPSAMPLE_SHIFT_16;
-		taps = hc16 + NUMTAPS(16) * volidx;
-	}
+	uint16_t i, nframes = format.nframes;
 
 	while (nframes--) {
-		const float *tap = taps;
+		const float *tap = format.taps;
 
 		*samples++ = *src++;
 		*samples++ = *src++;
