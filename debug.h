@@ -8,8 +8,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 
-#ifndef __linux__
-
 #include "trace.h"
 
 extern volatile uint32_t systicks;
@@ -24,16 +22,6 @@ extern volatile uint32_t systicks;
     do {                                                                \
         printf("[%08lx] %s(): " fmt, systicks, __func__, ##args);       \
     } while (0)
-
-#else
-
-#define trace(port, val)
-
-#define debugf(fmt, args...)                                        \
-    do {                                                            \
-        fprintf(stderr, "%s(): " fmt, __func__, ##args);            \
-    } while (0)
-#endif
 
 #else
 

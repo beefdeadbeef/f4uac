@@ -359,8 +359,6 @@ static uint16_t resample(uint32_t *dst, const float *src)
 /*
  *
  */
-#ifndef KICKSTART
-
 static uint16_t resample_ringbuf(void *dst)
 {
 	uint16_t count, len = format.chunksize;
@@ -396,8 +394,6 @@ static uint16_t resample_ringbuf(void *dst)
 	return resample(dst, buf);
 }
 
-#endif
-
 /*
  */
 
@@ -416,8 +412,6 @@ static uint16_t resample_table(void *dst)
 	return len;
 }
 
-#ifndef KICKSTART
-
 void select_table(sample_table tbl)
 {
 	table = table_start = tables[tbl].start;
@@ -433,43 +427,3 @@ void pump(frame_type frame)
 	format.fmt == SAMPLE_FORMAT_NONE ?
 		resample_table(dst) : resample_ringbuf(dst);
 }
-
-#else
-
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/mman.h>
-
-#define NPASS 6 * 16
-#define BUFSZ (NCHANNELS * NFRAMES * (NPASS + sizeof(uint32_t)))
-
-int main(int ac, char **av)
-{
-	uint8_t *buf;
-	uint32_t *buf32;
-	uint16_t len;
-	int i, fd, pass = NPASS;
-	off_t sum = 0;
-
-	table = table_start = s1_tbl;
-	table_end = s1_tbl + sizeof(s1_tbl)/sizeof(s1_tbl[0]);
-
-	fd = open("tool.u8", O_RDWR|O_CREAT|O_TRUNC, 0644);
-	lseek(fd, BUFSZ - 1, SEEK_SET);
-	write(fd, "", 1);
-
-	buf = mmap(NULL, BUFSZ, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
-
-	do {
-		sum += len = resample_table(buf) >> 2;
-		debugf("len=%d sum=%ld of %ld\n", len, sum, BUFSZ);
-
-		for (i=0, buf32=(uint32_t *)buf; i<len; i++)
-			*buf++ = *buf32++ &0xff;
-
-	} while (--pass);
-
-	ftruncate(fd, sum);
-}
-
-#endif

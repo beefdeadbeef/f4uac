@@ -2,7 +2,6 @@
 CROSS	= arm-none-eabi-
 CC	= $(CROSS)gcc
 OBJCOPY	= $(CROSS)objcopy
-HOSTCC	= gcc
 OCTAVE	= octave
 
 #---------------------------------------------------------------
@@ -44,8 +43,5 @@ dsp.o:	$(TABLES)
 
 %.bin: %.elf
 	$(OBJCOPY) -Obinary $< $@
-
-dsp:	dsp.c $(TABLES)
-	$(HOSTCC) -g -Wall -O0 -DKICKSTART $< -o $@
 
 -include *.d
