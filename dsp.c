@@ -148,8 +148,8 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 	case UAC_SET_CUR:
 	{
 		uint16_t i = 0;
-		while (i < VOLSTEPS && vl[i++] > *val);
-		volidx = i == VOLSTEPS ? VOLSTEPS - 1 : i;
+		while (i < VOLSTEPS && vl[i] > *val) i++;
+		volidx = i;
 		set_taps();
 		break;
 	}
