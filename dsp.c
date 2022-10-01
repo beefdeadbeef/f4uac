@@ -351,14 +351,12 @@ static void sigmadelta(uint32_t *dst, const float *src)
 	}
 }
 
-static uint16_t resample(uint32_t *dst, const float *src)
+static void resample(uint32_t *dst, const float *src)
 {
 	float samples[NCHANNELS * NFRAMES];
 
 	upsample(samples, src);
 	sigmadelta(dst, samples);
-
-	return NCHANNELS * NFRAMES * 4;
 }
 
 #pragma GCC pop_options
@@ -366,7 +364,7 @@ static uint16_t resample(uint32_t *dst, const float *src)
 /*
  *
  */
-static uint16_t resample_ringbuf(void *dst)
+static void resample_ringbuf(void *dst)
 {
 	uint16_t count, len = format.chunksize;
 	uint16_t tail = 0, framelen = format.framesize;
@@ -375,7 +373,7 @@ static uint16_t resample_ringbuf(void *dst)
 
 	r.u32 = rb.u32;
 
-	if (rb_count(r) < len) return 0;
+	if (rb_count(r) < len) return;
 
 	p = buf = alloca(format.nframes * sizeof(float) * NCHANNELS);
 
@@ -398,22 +396,20 @@ static uint16_t resample_ringbuf(void *dst)
 
 	rb.tail = (r.tail + format.chunksize) & (RBSIZE - 1);
 
-	return resample(dst, buf);
+	resample(dst, buf);
 }
 
 /*
  */
 
-static uint16_t resample_table(void *dst)
+static void resample_table(void *dst)
 {
 	static const float *table = s1_tbl;
 	static const float *table_start = s1_tbl;
-	uint16_t len;
 
-	if (table == &s1_tbl[S1LEN]) table = table_start;
-	len = resample(dst, (void *)table);
+	resample(dst, (void *)table);
 	table += NCHANNELS * NFRAMES >> UPSAMPLE_SHIFT_16;
-	return len;
+	if (table == &s1_tbl[S1LEN]) table = table_start;
 }
 
 extern void *pframe(frame_type frame);
