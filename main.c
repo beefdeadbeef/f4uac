@@ -39,7 +39,6 @@ void pwm();
 void pwm_enable();
 void usbd(void);
 void pump(frame_type frame);
-void select_table(sample_table table);
 
 void sys_tick_handler(void)
 {
@@ -56,12 +55,6 @@ void usart1_isr(void)
 		usart_send_blocking(USART1, data);
 
 		switch (data) {
-		case 'a':
-			select_table(SAMPLE_TABLE_S1);
-			break;
-		case 's':
-			select_table(SAMPLE_TABLE_S2);
-			break;
 		case 'q':
 			e.state = STATE_DRAIN;
 			break;

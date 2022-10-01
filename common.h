@@ -70,15 +70,6 @@ typedef enum {
 } frame_type;
 
 /*
- *
- */
-typedef enum {
-	SAMPLE_TABLE_S1,
-	SAMPLE_TABLE_S2,
-	SAMPLE_TABLE_END
-} sample_table;
-
-/*
  * sync'd with usb descriptor alt settings order
  */
 typedef enum {

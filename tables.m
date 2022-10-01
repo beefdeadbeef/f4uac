@@ -132,4 +132,3 @@ fprintf(fd, HEADER, VOLSTEPS, VOLSTEPS,
 fprintf(fd, "%s\n", sfir(FIR, 4, 32, ATTN * VOL));
 fprintf(fd, "%s\n", sfir(FIR, 3, 16, ATTN * VOL));
 fprintf(fd, "%s\n", sample(SAMPLE, 1, 48000));
-fprintf(fd, "%s\n", sample(SAMPLE, 2, 48000));

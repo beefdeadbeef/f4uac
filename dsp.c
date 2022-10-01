@@ -12,14 +12,6 @@
 #include "dsp.h"
 #include "tables.h"
 
-static const struct {
-	const float * start;
-	const float * end;
-} tables [SAMPLE_TABLE_END] = {
-	{ .start = s1_tbl, .end = s1_tbl + sizeof(s1_tbl)/sizeof(s1_tbl[0]) },
-	{ .start = s2_tbl, .end = s2_tbl + sizeof(s2_tbl)/sizeof(s2_tbl[0]) }
-};
-
 /*
  *
  */
@@ -412,25 +404,16 @@ static uint16_t resample_ringbuf(void *dst)
 /*
  */
 
-static const float *table_start = s1_tbl;
-static const float *table_end = s1_tbl + sizeof(s1_tbl)/sizeof(s1_tbl[0]);
-static const float *table = s1_tbl;
-
 static uint16_t resample_table(void *dst)
 {
+	static const float *table = s1_tbl;
+	static const float *table_start = s1_tbl;
 	uint16_t len;
 
-	if (!table_start) return 0;
-	if (table == table_end) table = table_start;
+	if (table == &s1_tbl[S1LEN]) table = table_start;
 	len = resample(dst, (void *)table);
 	table += NCHANNELS * NFRAMES >> UPSAMPLE_SHIFT_16;
 	return len;
-}
-
-void select_table(sample_table tbl)
-{
-	table = table_start = tables[tbl].start;
-	table_end = tables[tbl].end;
 }
 
 extern void *pframe(frame_type frame);
