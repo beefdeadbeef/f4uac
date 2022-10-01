@@ -75,6 +75,11 @@ void usart1_isr(void)
         }
 }
 
+static void poll()
+{
+	gpio_toggle(GPIOC, GPIO13);
+}
+
 int main() {
 
 	uint32_t wake;
@@ -138,21 +143,16 @@ int main() {
 	pwm();
 	usbd();
 
-heartbeat:
-
-	wake = systicks + 500;
-	gpio_toggle(GPIOC, GPIO13);
-
 mainloop:
+	wake = systicks + 500;
+
+sleep:
 	__asm("wfe");
 
-	if (e.seen) goto mainloop;
+	if (e.seen) goto poll;
 	e.seen = true;
 
 	switch (e.state) {
-
-	case STATE_CLOSED:
-		break;
 
 	case STATE_FILL:
 		pump(BUSY_FRAME);
@@ -167,13 +167,17 @@ mainloop:
 
 	case STATE_DRAIN:
 		e.state = STATE_CLOSED;
+
+	case STATE_CLOSED:
 		break;
 	};
 
+poll:
 	if (wake > systicks)
-		goto mainloop;
-	else
-		goto heartbeat;
+		goto sleep;
+
+	poll();
+	goto mainloop;
 
 	return 0;
 }
