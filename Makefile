@@ -1,47 +1,39 @@
-#---------------------------------------------------------------
-CROSS	= arm-none-eabi-
-CC	= $(CROSS)gcc
-OBJCOPY	= $(CROSS)objcopy
-OCTAVE	= octave
+#------------------------------------------ -*- tab-width: 8 -*-
+OPENCM3_DIR	= libopencm3
+DEVICE		= stm32f401cc
+BINARY		= f4uac
+OBJS		= main.o pwm.o usbd.o dsp.o trace.o trace_stdio.o
+VPATH		= $(OPENCM3_DIR)/tests/shared
+
+CFLAGS		+= -pipe -g -Os -flto
+CFLAGS		+= -Wall -Wextra -Wshadow -Wredundant-decls
+
+include		$(OPENCM3_DIR)/mk/genlink-config.mk
+include		$(OPENCM3_DIR)/mk/gcc-config.mk
+
+CPPFLAGS	+= -MMD
+CPPFLAGS	+= -I$(OPENCM3_DIR)/tests/shared
+
+LDFLAGS		+= --static -nostartfiles -Wl,--gc-sections
+LDLIBS		+= -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 
 #---------------------------------------------------------------
-OPENCM3	?= libopencm3
-VPATH	+= $(OPENCM3)/tests/shared
+OCTAVE		= @octave
+TABLES		= tables.h
 
-DEFS	= -DSTM32F4
-DEFS	+= -I$(OPENCM3)/include -I$(OPENCM3)/tests/shared
-
-CFLAGS	= -pipe -g -Os -MMD
-CFLAGS	+= -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
-CFLAGS	+= -Wall -Wextra -Wshadow -Wimplicit-function-declaration -Wredundant-decls
-CFLAGS	+= -fno-common -ffunction-sections -fdata-sections
-CFLAGS	+= $(DEFS)
-
-LIBNAME	= opencm3_stm32f4
-LDFLAGS	= -L$(OPENCM3)/lib
-LDFLAGS	+= -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
-LDFLAGS	+= --static -nostartfiles -Tstm32f4.ld -Wl,--gc-sections
-LDLIBS	= -l$(LIBNAME) -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
-
-#---------------------------------------------------------------
-BINARY	= f4uac
-TABLES	= tables.h
-OBJS	= main.o pwm.o usbd.o trace.o trace_stdio.o dsp.o
-
-all:	lib $(BINARY).elf $(BINARY).bin
+all:		lib $(BINARY).elf $(BINARY).bin
 
 lib:
-	make -C $(OPENCM3) TARGETS=stm32/f4 lib
+		$(Q)$(MAKE) -C $(OPENCM3_DIR) TARGETS=stm32/f4 lib
 
 $(TABLES): %.h: %.m
-	@$(OCTAVE) -qf $< $@
+		$(OCTAVE) -qf $< $@
 
-dsp.o:	$(TABLES)
+dsp.o:		$(TABLES)
 
-%.elf:	$(OBJS)
-	$(CC) $^ $(LDFLAGS) $(LDLIBS) -o $@
-
-%.bin: %.elf
-	$(OBJCOPY) -Obinary $< $@
+include		$(OPENCM3_DIR)/mk/genlink-rules.mk
+include		$(OPENCM3_DIR)/mk/gcc-rules.mk
 
 -include *.d
+
+.PHONY:		all lib
