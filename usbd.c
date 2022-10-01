@@ -451,7 +451,7 @@ uint8_t usbd_control_buffer[192];
 extern void rb_setup(sample_fmt format, sample_rate freq);
 extern uint16_t rb_put(void *src, uint16_t len);
 extern void cmute(uac_rq req, uint8_t *val);
-extern void cvolume(uac_rq req, uint8_t ch, int16_t *val);
+extern void cvolume(uac_rq req, uint16_t ch, int16_t *val);
 extern volatile ev_t e;
 
 static usbd_device * usbdev;
