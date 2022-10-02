@@ -17,8 +17,13 @@ CPPFLAGS	+= -I$(OPENCM3_DIR)/tests/shared
 LDFLAGS		+= --static -nostartfiles -Wl,--gc-sections
 LDLIBS		+= -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 
+ifneq ($(V),1)
+Q := @
+# Do not print "Entering directory ...".
+MAKEFLAGS += --no-print-directory
+endif
 #---------------------------------------------------------------
-OCTAVE		= @octave
+OCTAVE		= octave
 TABLES		= tables.h
 
 all:		lib $(BINARY).elf $(BINARY).bin
@@ -27,7 +32,8 @@ lib:
 		$(Q)$(MAKE) -C $(OPENCM3_DIR) TARGETS=stm32/f4 lib
 
 $(TABLES): %.h: %.m
-		$(OCTAVE) -qf $< $@
+		@printf "  OCT     $@\n"
+		$(Q)$(OCTAVE) -qf $< $@
 
 dsp.o:		$(TABLES)
 
