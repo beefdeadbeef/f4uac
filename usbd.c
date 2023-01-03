@@ -495,7 +495,7 @@ static void sof_cb(void)
 	static uint32_t sofn = (1 << SOF_RATE);
 	static uint32_t feedback;
 
-	if (e.state != STATE_FILL && e.state != STATE_RUNNING) return;
+	if (format == SAMPLE_FORMAT_NONE) return;
 
 	if (!--sofn) {
 		feedback = (e.state == STATE_FILL) ? FEEDBACK :
