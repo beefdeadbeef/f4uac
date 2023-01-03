@@ -591,8 +591,8 @@ static enum usbd_request_return_codes control_cs_ep_cb(
 	(void) complete;
 	(void) len;
 
-	debugf("bRequest: %02x wValue: %04x wIndex: %04x len: %d data=%02x\n",
-	       req->bRequest, req->wValue, req->wIndex, *len, *buf[0]);
+	debugf("bRequest: %02x wValue: %04x wIndex: %04x len: %d\n",
+	       req->bRequest, req->wValue, req->wIndex, *len);
 
 	/* wValue: 0100 sampling freq control, wIndex: ep address */
 	if (req->wValue == 0x100 && req->wIndex == ISO_OUT_ENDP_ADDR) {
@@ -603,8 +603,10 @@ static enum usbd_request_return_codes control_cs_ep_cb(
 		switch (req->bRequest) {
 		case UAC_SET_CUR:
 			rb_setup(format, freq = r->freq);
+			debugf("set_cur: freq: %d\n", freq);
 			break;
 		case UAC_GET_CUR:
+			debugf("get_cur: freq: %d\n", freq);
 			r->freq = freq;
 		default:
 			break;
