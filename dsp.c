@@ -57,6 +57,7 @@ static struct {
 	uint16_t nframes;
 	uint16_t framesize;
 	uint16_t chunksize;
+	float scale;
 	const float *taps;
 } format;
 
@@ -64,12 +65,16 @@ static bool muted = true;
 static uint16_t volidx = 6;
 static void reset_zstate();
 
-static void set_taps()
+static void set_scale()
 {
 	uint16_t idx = muted ? VOLSTEPS - 1 : volidx;
-	format.taps = format.f8 ?
-		hc8 + NUMTAPS8 * idx :
-		hc16 + NUMTAPS16 * idx;
+	format.scale = scale[idx]  / (const float[]) {
+		[SAMPLE_FORMAT_NONE] = 1<<0,
+		[SAMPLE_FORMAT_S16] = 1<<15,
+		[SAMPLE_FORMAT_S24] = 1<<23,
+		[SAMPLE_FORMAT_S32] = 1<<31,
+		[SAMPLE_FORMAT_F32] = 1<<0
+	} [format.fmt];
 }
 
 void rb_setup(sample_fmt fmt, sample_rate rate)
@@ -83,8 +88,9 @@ void rb_setup(sample_fmt fmt, sample_rate rate)
 		NFRAMES >> UPSAMPLE_SHIFT_16;
 	format.framesize = framesize(fmt);
 	format.chunksize = format.framesize * format.nframes;
-	set_taps();
+	format.taps = format.f8 ? hc8 : hc16;
 	reset_zstate();
+	set_scale();
 }
 
 uint16_t rb_put(void *src, uint16_t len)
@@ -123,7 +129,7 @@ void cmute(uac_rq req, uint8_t *val)
 	switch (req) {
 	case UAC_SET_CUR:
 		muted = *val;
-		set_taps();
+		set_scale();
 		break;
 	case UAC_GET_CUR:
 		*val = muted;
@@ -140,9 +146,9 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 	case UAC_SET_CUR:
 	{
 		uint16_t i = 0;
-		while (i < VOLSTEPS && vl[i] > *val) i++;
+		while (i < VOLSTEPS && db[i] > *val) i++;
 		volidx = i;
-		set_taps();
+		set_scale();
 		break;
 	}
 	case UAC_SET_MIN:
@@ -150,10 +156,10 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 	case UAC_SET_RES:
 		break;
 	case UAC_GET_CUR:
-		*val =  vl[volidx];
+		*val =  db[volidx];
 		break;
 	case UAC_GET_MIN:
-		*val = vl[VOLSTEPS - 1];
+		*val = db[VOLSTEPS - 1];
 		break;
 	case UAC_GET_MAX:
 		*val = 0;
@@ -190,15 +196,20 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 #define STATELEN (BACKLOG(8) + NSAMPLES(8))
 #endif
 
-#define FX16 (float)(1U<<15)
-#define FX24 (float)(1U<<23)
-#define FX32 (float)(1U<<31)
+static inline float *reframe_f32(float *dst, const float *src, uint16_t nframes)
+{
+	while (nframes--) {
+		*dst++ = format.scale * *src++;
+		*dst++ = format.scale * *src++;
+	}
+	return dst;
+}
 
 static inline float *reframe_s32(float *dst, const int32_t *src, uint16_t nframes)
 {
 	while (nframes--) {
-		*dst++ = *src++ / FX32;
-		*dst++ = *src++ / FX32;
+		*dst++ = format.scale * *src++;
+		*dst++ = format.scale * *src++;
 	}
 	return dst;
 }
@@ -222,16 +233,16 @@ static inline float *reframe_s24(float *dst, const uint16_t *src, uint16_t nfram
 		s.u[0] = *src++;
 		s.u[1] = *src++;
 		s.u[2] = *src++;
-		*dst++ = s.l / FX24;
-		*dst++ = s.r / FX24;
+		*dst++ = format.scale * s.l;
+		*dst++ = format.scale * s.r;
 	}
 
 	while (tail--) {
 		s.u[0] = *src++;
 		s.u[1] = *src++;
 		s.u[2] = *src++;
-		*dst++ = s.l / FX24;
-		*dst++ = s.r / FX24;
+		*dst++ = format.scale * s.l;
+		*dst++ = format.scale * s.r;
 	}
 
 	return dst;
@@ -240,8 +251,8 @@ static inline float *reframe_s24(float *dst, const uint16_t *src, uint16_t nfram
 static inline float *reframe_s16(float *dst, const int16_t *src, uint16_t nframes)
 {
 	while (nframes--) {
-		*dst++ = *src++ / FX16;
-		*dst++ = *src++ / FX16;
+		*dst++ = format.scale * *src++;
+		*dst++ = format.scale * *src++;
 	}
 	return dst;
 }
@@ -252,8 +263,7 @@ static float *reframe(float *dst, const void *src, uint16_t len)
 
 	switch (format.fmt) {
 	case SAMPLE_FORMAT_F32:
-		memcpy((void *)dst, src, len);
-		return dst + NCHANNELS * nframes;
+		return reframe_f32(dst, src, nframes);
 
 	case SAMPLE_FORMAT_S32:
 		return reframe_s32(dst, src, nframes);
