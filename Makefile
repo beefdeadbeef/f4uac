@@ -29,7 +29,7 @@ TABLES		= tables.h
 all:		lib $(BINARY).elf $(BINARY).bin
 
 lib:
-		$(Q)$(MAKE) -C $(OPENCM3_DIR) TARGETS=stm32/f4 lib
+		$(Q)$(MAKE) -C $(OPENCM3_DIR) lib TARGETS=stm32/f4 CFLAGS=-flto AR=$(CC)-ar
 
 $(TABLES): %.h: %.m
 		@printf "  OCT     $@\n"
