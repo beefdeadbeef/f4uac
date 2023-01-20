@@ -68,8 +68,17 @@ static struct {
 	const float *taps;
 } format;
 
-static uint16_t volidx;
+static bool muted = true;
+static uint16_t volidx = 6;
 static void reset_zstate();
+
+static void set_taps()
+{
+	uint16_t idx = muted ? VOLSTEPS - 1 : volidx;
+	format.taps = format.f8 ?
+		hc8 + NUMTAPS8 * idx :
+		hc16 + NUMTAPS16 * idx;
+}
 
 void rb_setup(sample_fmt fmt, sample_rate rate)
 {
@@ -82,10 +91,7 @@ void rb_setup(sample_fmt fmt, sample_rate rate)
 		NFRAMES >> UPSAMPLE_SHIFT_16;
 	format.framesize = framesize(fmt);
 	format.chunksize = format.framesize * format.nframes;
-	format.taps = format.f8 ?
-		hc8 + NUMTAPS8 * volidx :
-		hc16 + NUMTAPS16 * volidx;
-
+	set_taps();
 	reset_zstate();
 }
 
@@ -120,6 +126,21 @@ uint16_t rb_put(void *src, uint16_t len)
 /*
  *
  */
+void cmute(uac_rq req, uint8_t *val)
+{
+	switch (req) {
+	case UAC_SET_CUR:
+		muted = *val;
+		set_taps();
+		break;
+	case UAC_GET_CUR:
+		*val = muted;
+		break;
+	default:
+		break;
+	}
+}
+
 void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 {
 	(void) chan;
@@ -129,9 +150,7 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 		uint16_t i = 0;
 		while (i < VOLSTEPS && vl[i++] > *val);
 		volidx = i == VOLSTEPS ? VOLSTEPS - 1 : i;
-		format.taps = format.f8 ?
-			hc8 + NUMTAPS8 * volidx :
-			hc16 + NUMTAPS16 * volidx;
+		set_taps();
 		break;
 	}
 	case UAC_SET_MIN:

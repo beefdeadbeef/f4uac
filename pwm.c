@@ -106,22 +106,3 @@ void dma2_stream5_isr(void)
 		break;
 	};
 }
-
-void cmute(uac_rq req, uint8_t *val)
-{
-	static bool mute = true;
-
-	switch (req) {
-	case UAC_SET_CUR:
-		if ((mute = *val))
-			gpio_set(GPIOB, GPIO12);
-		else
-			gpio_clear(GPIOB, GPIO12);
-		break;
-	case UAC_GET_CUR:
-		*val = mute;
-		break;
-	default:
-		break;
-	}
-}
