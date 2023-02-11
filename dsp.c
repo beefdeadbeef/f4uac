@@ -61,7 +61,7 @@ static struct {
 	const float *taps;
 } format;
 
-static bool muted = true;
+static bool muted;
 static uint16_t volidx = 6;
 static void reset_zstate();
 
@@ -91,6 +91,11 @@ void rb_setup(sample_fmt fmt, sample_rate rate)
 	format.taps = format.f8 ? hc8 : hc16;
 	reset_zstate();
 	set_scale();
+}
+
+static void __attribute__((constructor)) rb_init(void)
+{
+	rb_setup(SAMPLE_FORMAT_NONE, SAMPLE_RATE_48000);
 }
 
 uint16_t rb_put(void *src, uint16_t len)
@@ -385,7 +390,7 @@ static void resample_ringbuf(void *dst)
 
 	if (rb_count(r) < len) return;
 
-	p = buf = alloca(format.nframes * sizeof(float) * NCHANNELS);
+	p = buf = alloca(format.nframes * framesize(SAMPLE_FORMAT_F32));
 
 	count = rb_count_to_end(r);
 
@@ -411,15 +416,29 @@ static void resample_ringbuf(void *dst)
 
 /*
  */
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 static void resample_table(void *dst)
 {
-	static const float *table = s1_tbl;
-	static const float *table_start = s1_tbl;
+	uint32_t count, slen = sizeof(stbl) / sizeof(stbl[0]);
+	uint32_t nframes = format.nframes;
+	static uint32_t idx;
+	float *p, *buf;
 
-	resample(dst, (void *)table);
-	table += NCHANNELS * NFRAMES >> UPSAMPLE_SHIFT_16;
-	if (table == &s1_tbl[S1LEN]) table = table_start;
+	p = buf = alloca(format.chunksize);
+
+	while(nframes) {
+		count = MIN(nframes, slen - idx);
+		nframes -= count;
+		while(count--) {
+			*p++ = format.scale * stbl[idx];
+			*p++ = - format.scale * stbl[idx];
+			idx++;
+		}
+		if (idx == slen) idx = 0;
+	}
+
+	resample(dst, buf);
 }
 
 extern void *pframe(frame_type frame);

@@ -28,18 +28,11 @@ const float hc%d[] = {\n\
 ";
 
 SAMPLE = "\
-#define S%dLEN %d\n\
+#define SLEN %d\n\
 \n\
-__asm__ (\n\
-	\".pushsection .rodata,\\\"a\\\"\\n\"\n\
-	\".global s%d_tbl\\n\"\n\
-	\" s%d_tbl:\\n\"\n\
-	\".incbin \\\"s%d.bin\\\"\\n\"\n\
-	\".popsection\\n\"\n\
-	);\n\
-\n\
-extern const float s%d_tbl[S%dLEN];\n\
-\n\
+const float stbl[SLEN] = {\n\
+%s\
+};\n\
 ";
 
 %---------------------------------------------------------------
@@ -72,31 +65,9 @@ function s = sfir(fmt, e, n)
 
 endfunction
 
-function s = sample(fmt, x, fs)
-
-  switch (x)
-    case 1
-      n=384;
-      v0 = sin(2*pi*[0:n-1]*1000/fs);
-      v1 = fliplr(sin(2*pi*[1:n]*1000/fs));
-      v = reshape ([v0; v1], 1, []);
-    case 2
-      n=3840;
-      v0 = sin(2*pi*[0:n-1]*50/fs);
-      v1 = sin(2*pi*[0:n-1]*1000/fs);
-      v2 = sin(2*pi*(0:n-1)*20000/fs);
-      v = 0.3 * v0 + 0.5 * v1 + 0.2 * v2;
-  endswitch
-
-  s = sprintf(fmt,
-              x, length(v),
-              x, x, x,
-              x, x);
-
-  fd = fopen(sprintf("s%d.bin", x), "w");
-  fwrite(fd, v, "float");
-  fclose(fd);
-
+function s = sample(fmt, n, fs)
+  x = sin(2*pi*[0:n-1]*1000/fs);
+  s = sprintf(fmt, n, carray(x));
 endfunction
 
 %---------------------------------------------------------------
@@ -121,4 +92,4 @@ fprintf(fd, HEADER, VOLSTEPS, carray(VOL),
         sprintf(["\t%12d,\n"], fix(256 * db(VOL))));
 fprintf(fd, "%s\n", sfir(FIR, 4, 32));
 fprintf(fd, "%s\n", sfir(FIR, 3, 16));
-fprintf(fd, "%s\n", sample(SAMPLE, 1, 48000));
+fprintf(fd, "%s\n", sample(SAMPLE, 48, 48000));
