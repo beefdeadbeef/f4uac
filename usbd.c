@@ -537,7 +537,6 @@ static enum usbd_request_return_codes control_cb(
 	   req->wIndex == 1) {	/* wIndex: iface # */
 		format = req->wValue; /* wValue: alt setting # */
 		framelen = framesize(format);
-		rb_setup(format, freq);
 		if (req->wValue) {
 			e.state = STATE_FILL;
 			fb.rts = fb.cts = true;
@@ -547,6 +546,7 @@ static enum usbd_request_return_codes control_cb(
 			fb.rts = fb.cts = false;
 			total = 0;
 		}
+		rb_setup(format, freq);
 		return USBD_REQ_HANDLED;
 	}
 
