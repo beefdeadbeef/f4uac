@@ -229,20 +229,7 @@ static inline float *reframe_s24(float *dst, const uint16_t *src, uint16_t nfram
 		uint16_t u[3];
 	} s;
 
-	uint16_t tail;
-
-	nframes -= (tail = nframes % 4);
-
-#pragma GCC unroll 4
 	while (nframes--) {
-		s.u[0] = *src++;
-		s.u[1] = *src++;
-		s.u[2] = *src++;
-		*dst++ = format.scale * s.l;
-		*dst++ = format.scale * s.r;
-	}
-
-	while (tail--) {
 		s.u[0] = *src++;
 		s.u[1] = *src++;
 		s.u[2] = *src++;
@@ -360,6 +347,7 @@ static uint16_t ns(const float *src, float *z)
 
 static void sigmadelta(uint16_t *dst, const float *src)
 {
+#pragma GCC unroll 4
 	for (uint16_t nframes = NFRAMES; nframes; nframes--) {
 		*dst++ = ns(src++, zstate);
 		*dst++ = ns(src++, &zstate[ORDER + 1]);
