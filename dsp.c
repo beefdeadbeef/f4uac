@@ -181,10 +181,6 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 
 /*
  * FIR filters
- *
- * UPSAMPLE : NUMTAPS : PHASELEN : BACKLOG
- *        8 :      16 :        2 :       2
- *       16 :      32 :        2 :       2
  */
 #define UPSAMPLE(x) (1U << UPSAMPLE_SHIFT_##x)
 #define PHASELEN(x) (NUMTAPS##x >> UPSAMPLE_SHIFT_##x)
