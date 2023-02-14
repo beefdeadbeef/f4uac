@@ -340,7 +340,7 @@ static void reset_zstate()
 	bzero(zstate, sizeof(zstate));
 }
 
-static inline uint32_t ns(const float *src, float *z)
+static uint16_t ns(const float *src, float *z)
 {
 	const float *x = abg;
 	const float *g = &abg[ORDER];
@@ -358,7 +358,7 @@ static inline uint32_t ns(const float *src, float *z)
 	return QF + p;
 }
 
-static void sigmadelta(uint32_t *dst, const float *src)
+static void sigmadelta(uint16_t *dst, const float *src)
 {
 	for (uint16_t nframes = NFRAMES; nframes; nframes--) {
 		*dst++ = ns(src++, zstate);
@@ -366,7 +366,7 @@ static void sigmadelta(uint32_t *dst, const float *src)
 	}
 }
 
-static void resample(uint32_t *dst, const float *src)
+static void resample(uint16_t *dst, const float *src)
 {
 	float samples[NCHANNELS * NFRAMES];
 
@@ -379,7 +379,7 @@ static void resample(uint32_t *dst, const float *src)
 /*
  *
  */
-static void resample_ringbuf(void *dst)
+static void resample_ringbuf(uint16_t *dst)
 {
 	uint16_t count, len = format.chunksize;
 	uint16_t tail = 0, framelen = format.framesize;
@@ -418,7 +418,7 @@ static void resample_ringbuf(void *dst)
  */
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
-static void resample_table(void *dst)
+static void resample_table(uint16_t *dst)
 {
 	uint32_t count, slen = sizeof(stbl) / sizeof(stbl[0]);
 	uint32_t nframes = format.nframes;
@@ -441,11 +441,11 @@ static void resample_table(void *dst)
 	resample(dst, buf);
 }
 
-extern void *pframe(frame_type frame);
+extern uint16_t *pframe(frame_type frame);
 
 void pump(frame_type frame)
 {
-	void *dst = pframe(frame);
+	uint16_t *dst = pframe(frame);
 
 	format.fmt == SAMPLE_FORMAT_NONE ?
 		resample_table(dst) : resample_ringbuf(dst);

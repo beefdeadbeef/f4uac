@@ -13,9 +13,9 @@
 #define PWM_DEADTIME 4
 #define DMABUFSZ (NCHANNELS * NFRAMES)
 
-static uint32_t frames[2 * DMABUFSZ];
+static uint16_t frames[2 * DMABUFSZ] __attribute__((aligned(4)));
 
-void *pframe(frame_type frame)
+uint16_t *pframe(frame_type frame)
 {
 	return (frame == dma_get_target(DMA2, DMA_STREAM5)) ?
 		frames: &frames[DMABUFSZ];
@@ -44,7 +44,7 @@ void pwm()
 	dma_channel_select(DMA2, DMA_STREAM5, DMA_SxCR_CHSEL_6);
 	dma_set_priority(DMA2, DMA_STREAM5, DMA_SxCR_PL_HIGH);
 	dma_set_memory_size(DMA2, DMA_STREAM5, DMA_SxCR_MSIZE_32BIT);
-	dma_set_peripheral_size(DMA2, DMA_STREAM5, DMA_SxCR_PSIZE_32BIT);
+	dma_set_peripheral_size(DMA2, DMA_STREAM5, DMA_SxCR_PSIZE_16BIT);
 	dma_enable_memory_increment_mode(DMA2, DMA_STREAM5);
 	dma_enable_double_buffer_mode(DMA2, DMA_STREAM5);
 	dma_set_transfer_mode(DMA2, DMA_STREAM5, DMA_SxCR_DIR_MEM_TO_PERIPHERAL);
