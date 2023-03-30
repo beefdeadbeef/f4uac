@@ -197,77 +197,6 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 #define STATELEN (BACKLOG(8) + NSAMPLES(8))
 #endif
 
-static inline float *reframe_f32(float *dst, const float *src, uint16_t nframes)
-{
-	while (nframes--) {
-		*dst++ = format.scale * *src++;
-		*dst++ = format.scale * *src++;
-	}
-	return dst;
-}
-
-static inline float *reframe_s32(float *dst, const int32_t *src, uint16_t nframes)
-{
-	while (nframes--) {
-		*dst++ = format.scale * *src++;
-		*dst++ = format.scale * *src++;
-	}
-	return dst;
-}
-
-static inline float *reframe_s24(float *dst, const uint16_t *src, uint16_t nframes)
-{
-	union {
-		struct __attribute__((packed)) {
-			int32_t l : 24;
-			int32_t r : 24;
-		};
-		uint16_t u[3];
-	} s;
-
-	while (nframes--) {
-		s.u[0] = *src++;
-		s.u[1] = *src++;
-		s.u[2] = *src++;
-		*dst++ = format.scale * s.l;
-		*dst++ = format.scale * s.r;
-	}
-
-	return dst;
-}
-
-static inline float *reframe_s16(float *dst, const int16_t *src, uint16_t nframes)
-{
-	while (nframes--) {
-		*dst++ = format.scale * *src++;
-		*dst++ = format.scale * *src++;
-	}
-	return dst;
-}
-
-static float *reframe(float *dst, const void *src, uint16_t len)
-{
-	uint16_t nframes = len / format.framesize;
-
-	switch (format.fmt) {
-	case SAMPLE_FORMAT_F32:
-		return reframe_f32(dst, src, nframes);
-
-	case SAMPLE_FORMAT_S32:
-		return reframe_s32(dst, src, nframes);
-
-	case SAMPLE_FORMAT_S24:
-		return reframe_s24(dst, src, nframes);
-
-	case SAMPLE_FORMAT_S16:
-		return reframe_s16(dst, src, nframes);
-
-	case SAMPLE_FORMAT_NONE:
-		break;
-	}
-	return dst;
-}
-
 static void upsample(float *dst, const float *src)
 {
 	static float state[STATELEN];
@@ -369,6 +298,80 @@ static void resample(uint16_t *dst, const float *src)
 
 	upsample(samples, src);
 	sigmadelta(dst, samples);
+}
+
+/*
+ *
+ */
+static inline float *reframe_f32(float *dst, const float *src, uint16_t nframes)
+{
+	while (nframes--) {
+		*dst++ = format.scale * *src++;
+		*dst++ = format.scale * *src++;
+	}
+	return dst;
+}
+
+static inline float *reframe_s32(float *dst, const int32_t *src, uint16_t nframes)
+{
+	while (nframes--) {
+		*dst++ = format.scale * *src++;
+		*dst++ = format.scale * *src++;
+	}
+	return dst;
+}
+
+static inline float *reframe_s24(float *dst, const uint16_t *src, uint16_t nframes)
+{
+	union {
+		struct __attribute__((packed)) {
+			int32_t l : 24;
+			int32_t r : 24;
+		};
+		uint16_t u[3];
+	} s;
+
+	while (nframes--) {
+		s.u[0] = *src++;
+		s.u[1] = *src++;
+		s.u[2] = *src++;
+		*dst++ = format.scale * s.l;
+		*dst++ = format.scale * s.r;
+	}
+
+	return dst;
+}
+
+static inline float *reframe_s16(float *dst, const int16_t *src, uint16_t nframes)
+{
+	while (nframes--) {
+		*dst++ = format.scale * *src++;
+		*dst++ = format.scale * *src++;
+	}
+	return dst;
+}
+
+static float *reframe(float *dst, const void *src, uint16_t len)
+{
+	uint16_t nframes = len / format.framesize;
+
+	switch (format.fmt) {
+	case SAMPLE_FORMAT_F32:
+		return reframe_f32(dst, src, nframes);
+
+	case SAMPLE_FORMAT_S32:
+		return reframe_s32(dst, src, nframes);
+
+	case SAMPLE_FORMAT_S24:
+		return reframe_s24(dst, src, nframes);
+
+	case SAMPLE_FORMAT_S16:
+		return reframe_s16(dst, src, nframes);
+
+	case SAMPLE_FORMAT_NONE:
+		break;
+	}
+	return dst;
 }
 
 #pragma GCC pop_options
