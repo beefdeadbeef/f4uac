@@ -90,6 +90,6 @@ fd = fopen(av{1}, "w");
 
 fprintf(fd, HEADER, VOLSTEPS, carray(VOL),
         sprintf(["\t%12d,\n"], fix(256 * db(VOL))));
-fprintf(fd, "%s\n", sfir(FIR, 4, 48));
-fprintf(fd, "%s\n", sfir(FIR, 3, 24));
+fprintf(fd, "%s\n", sfir(FIR, 4, 96));
+fprintf(fd, "%s\n", sfir(FIR, 3, 48));
 fprintf(fd, "%s\n", sample(SAMPLE, 48, 48000));
