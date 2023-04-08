@@ -446,7 +446,7 @@ static const struct usb_config_descriptor *configs[] = {
 	&config.cdesc,
 };
 
-uint8_t usbd_control_buffer[192];
+uint8_t usbd_control_buffer[64];
 
 extern void rb_setup(sample_fmt format, sample_rate freq);
 extern uint16_t rb_put(void *src, uint16_t len);
