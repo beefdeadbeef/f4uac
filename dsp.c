@@ -313,9 +313,14 @@ static void upsample(float *dst, const float *src)
 
 }
 
-#define ORDER 4
 #define QF (1U << (PWM_SHIFT - 1))
-const float abg[] = { .0157f, .1359f, .514f, .3609f, .003f, .0018f };
+#if (ORDER == 5)
+const float abg[] = { .0028f, .0344f, .1852f, .5904f, 1.1120f, .002f, .0007f };
+#elif (ORDER == 4)
+const float abg[] = { .0157f, .1359f, .514f, .3609f, .0018, .003f };
+#else
+const float abg[] = { .0751f, .0421f, .9811, .0014f };
+#endif
 static float zstate[NCHANNELS * (ORDER + 1)];
 
 static void reset_zstate()
@@ -330,13 +335,21 @@ static uint16_t ns(const float *src, float *z)
 	float sum;
 	int8_t p;
 
-	sum = *src - z[4];
-	z[0] += *x++ * sum + *g++ * z[1];
-	z[1] += z[0] + *x++ * sum;
-	z[2] += z[1] + *x++ * sum + *g * z[3];
-	z[3] += z[2] + *x * sum;
-	sum += z[3] + z[4];
-	z[4] = (p = __ssat((int32_t)(sum * QF), PWM_SHIFT)) / (float)QF;
+	sum = *src - z[0];
+#if (ORDER == 5)
+	z[5] += *x++ * sum;
+	z[4] += z[5] + *x++ * sum + g[1] * z[3];
+	z[3] += z[4] + *x++ * sum;
+#elif (ORDER == 4)
+	z[4] += *x++ * sum + g[1] * z[3];
+	z[3] += z[4] + *x++ * sum;
+#else
+	z[3] += *x++ * sum;
+#endif
+	z[2] += z[3] + *x++ * sum + g[0] * z[1];
+	z[1] += z[2] + *x * sum;
+	sum += z[1] + z[0];
+	z[0] = (p = __ssat((int32_t)(sum * QF), PWM_SHIFT)) / (float)QF;
 
 	return QF + p;
 }

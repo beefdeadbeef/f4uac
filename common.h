@@ -32,6 +32,11 @@
 #define PWM_PERIOD 	(1 << PWM_SHIFT)
 
 /*
+ * noise shaper order
+ */
+#define ORDER		5
+
+/*
  * circular buffer size, must be 2^N
  */
 #define RINGBUF_SHIFT	12
