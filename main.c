@@ -5,28 +5,23 @@
 
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/systick.h>
-#include <libopencm3/stm32/rcc.h>
-#include <libopencm3/stm32/flash.h>
+#include <libopencm3/stm32/crs.h>
 #include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/usart.h>
 
 #include "common.h"
 
-const struct rcc_clock_scale rcc_hse_25mhz_custom = {
-	.pllm = 25,
-	.plln = 384,
-	.pllp = 4,
-	.pllq = 8,
-	.pllr = 0,
+const struct rcc_clock_scale rcc_hse_custom = {
+	.hse_xtpre = RCC_CFGR_PLLXTPRE_HSE_CLK_PREDIV,
+	.pll_mul = RCC_CFGR_PLLRANGE_HIGH | RCC_CFGR_PLLMUL_PLL_CLK_MUL48,
 	.pll_source = RCC_CFGR_PLLSRC_HSE_CLK,
 	.hpre = RCC_CFGR_HPRE_NODIV,
 	.ppre1 = RCC_CFGR_PPRE_DIV2,
-	.ppre2 = RCC_CFGR_PPRE_NODIV,
-	.voltage_scale = PWR_SCALE1,
-	.flash_config = FLASH_ACR_DCEN|FLASH_ACR_ICEN|FLASH_ACR_PRFTEN|FLASH_ACR_LATENCY_2WS,
-	.ahb_frequency  = 96000000,
-	.apb1_frequency = 48000000,
-	.apb2_frequency = 96000000,
+	.ppre2 = RCC_CFGR_PPRE_DIV2,
+	.ahb_frequency  = 192000000,
+	.apb1_frequency = 96000000,
+	.apb2_frequency = 96000000
 };
 
 volatile uint32_t systicks;
@@ -80,43 +75,50 @@ int main() {
 /*
  * clocks
  */
-	rcc_clock_setup_pll(&rcc_hse_25mhz_custom);
-	rcc_periph_clock_enable(RCC_DMA2);
+	rcc_clock_setup_pll(&rcc_hse_custom);
+	rcc_periph_clock_enable(RCC_AFIO);
+	rcc_periph_clock_enable(RCC_CRS);
+	rcc_periph_clock_enable(RCC_DMA1);
 	rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOC);
-	rcc_periph_clock_enable(RCC_SPI1);
 	rcc_periph_clock_enable(RCC_TIM1);
-	rcc_periph_clock_enable(RCC_TIM2);
 	rcc_periph_clock_enable(RCC_USART1);
+	rcc_set_hsi_div(RCC_CFGR3_HSIDIV_NODIV);
+	rcc_set_hsi_sclk(RCC_CFGR5_HSI_SCLK_HSIDIV);
+	rcc_set_usb_clock_source(RCC_HSI);
+	rcc_periph_clock_enable(RCC_USB);
+	rcc_usb_alt_pma_enable();
+	rcc_usb_alt_isr_enable();
+	crs_autotrim_usb_enable();
 /*
  * systick
  */
 	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
-	systick_set_reload(PLLO / 1000);
+	systick_set_reload(rcc_ahb_frequency / 1000);
 	systick_interrupt_enable();
 	systick_counter_enable();
 /*
  * gpios
  */
-	gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE,
-			GPIO0|GPIO1|GPIO4);			/* DEBUG */
-	gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE,
-			GPIO5|GPIO7|GPIO8|GPIO9|GPIO11|GPIO12);
-	gpio_set_af(GPIOA, GPIO_AF5, GPIO5|GPIO7);		/* SPI1 CLK/MOSI */
-	gpio_set_af(GPIOA, GPIO_AF1, GPIO8|GPIO9);		/* TIM1 CH1/2 */
-	gpio_set_af(GPIOA, GPIO_AF10, GPIO11|GPIO12);           /* USB_FS */
+	gpio_set_mux(AFIO_GMUX_TIM1_A12_B12);	/* CH1/2:A8/9 CHN1/2 B13/14 */
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO0|GPIO1);	/* DEBUG */
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
+		      GPIO8|GPIO9|GPIO11|GPIO12);
 
-	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE,
-			GPIO6|GPIO7|GPIO13|GPIO14);
-	gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO12);
-	gpio_set_output_options(GPIOB, GPIO_OTYPE_OD,
-				GPIO_OSPEED_2MHZ, GPIO12);
-	gpio_set(GPIOB, GPIO12);				/* PWMENA */
-	gpio_set_af(GPIOB, GPIO_AF7, GPIO6|GPIO7);              /* USART1 TX/RX */
-	gpio_set_af(GPIOB, GPIO_AF1, GPIO13|GPIO14);		/* TIM1 CH1N/2N */
-	gpio_mode_setup(GPIOC, GPIO_MODE_OUTPUT,
-			GPIO_PUPD_NONE, GPIO13);		/* PC13 LED */
+	gpio_set_mux(AFIO_GMUX_USART1_B6);			/* TX:RX B[6:7] */
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
+		      GPIO6|GPIO7|GPIO13|GPIO14);
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);	/* PWMEN */
+
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);	/* PC13 LED */
+
+	gpio_set(GPIOB, GPIO12);
 /*
  * usart
  */

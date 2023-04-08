@@ -8,9 +8,11 @@
 #include "debug.h"
 
 /*
- * our main clock
+ * guard against unsupported mcu family
  */
-#define PLLO 96000000UL
+#if !defined(AT32F40X)
+#error "unsupported MCU family"
+#endif
 
 /*
  * we're stereo ffs
@@ -26,7 +28,7 @@
 /*
  * pwm width
  */
-#define PWM_SHIFT 	7
+#define PWM_SHIFT 	8
 #define PWM_PERIOD 	(1 << PWM_SHIFT)
 
 /*

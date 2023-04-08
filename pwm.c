@@ -15,9 +15,20 @@
 
 static uint16_t frames[2 * DMABUFSZ] __attribute__((aligned(4)));
 
+#define __DMA DMA1
+#define __DMA_STREAM DMA_CHANNEL1
+#define __DMA_IRQ NVIC_DMA1_CHANNEL1_IRQ
+#define __DMA_PRIO DMA_CCR_PL_VERY_HIGH
+#define __DMA_MSIZE DMA_CCR_MSIZE_16BIT
+#define __DMA_PSIZE DMA_CCR_PSIZE_16BIT
+#define __dma_isr dma1_channel1_isr
+
+static volatile uint32_t dma_target;
+#define dma_get_target(x, y) (dma_target)
+
 uint16_t *pframe(frame_type frame)
 {
-	return (frame == dma_get_target(DMA2, DMA_STREAM5)) ?
+	return (frame == dma_get_target(__DMA, __DMA_STREAM)) ?
 		frames: &frames[DMABUFSZ];
 }
 
@@ -40,21 +51,23 @@ static void timer_tim1_setup_ocs(enum tim_oc_id oc, enum tim_oc_id ocn)
 
 void pwm()
 {
-	dma_stream_reset(DMA2, DMA_STREAM5);
-	dma_channel_select(DMA2, DMA_STREAM5, DMA_SxCR_CHSEL_6);
-	dma_set_priority(DMA2, DMA_STREAM5, DMA_SxCR_PL_HIGH);
-	dma_set_memory_size(DMA2, DMA_STREAM5, DMA_SxCR_MSIZE_32BIT);
-	dma_set_peripheral_size(DMA2, DMA_STREAM5, DMA_SxCR_PSIZE_16BIT);
-	dma_enable_memory_increment_mode(DMA2, DMA_STREAM5);
-	dma_enable_double_buffer_mode(DMA2, DMA_STREAM5);
-	dma_set_transfer_mode(DMA2, DMA_STREAM5, DMA_SxCR_DIR_MEM_TO_PERIPHERAL);
-	dma_set_number_of_data(DMA2, DMA_STREAM5, DMABUFSZ);
-	dma_set_peripheral_address(DMA2, DMA_STREAM5, (uint32_t)&TIM_DMAR(TIM1));
-	dma_set_memory_address(DMA2, DMA_STREAM5, (uint32_t)frames);
-	dma_set_memory_address_1(DMA2, DMA_STREAM5, (uint32_t)&frames[DMABUFSZ]);
-	dma_enable_transfer_complete_interrupt(DMA2, DMA_STREAM5);
-	dma_enable_stream(DMA2, DMA_STREAM5);
-	nvic_enable_irq(NVIC_DMA2_STREAM5_IRQ);
+	dma_enable_flex_mode(__DMA);
+	dma_channel_reset(__DMA, __DMA_STREAM);
+	dma_set_channel_request(__DMA, __DMA_STREAM, DMA_REQ_TIM1_UP);
+	dma_set_priority(__DMA, __DMA_STREAM, __DMA_PRIO);
+	dma_set_memory_size(__DMA, __DMA_STREAM, __DMA_MSIZE);
+	dma_set_peripheral_size(__DMA, __DMA_STREAM, __DMA_PSIZE);
+	dma_enable_memory_increment_mode(__DMA, __DMA_STREAM);
+	dma_enable_circular_mode(__DMA, __DMA_STREAM);
+	dma_set_read_from_memory(__DMA, __DMA_STREAM);
+	dma_set_number_of_data(__DMA, __DMA_STREAM, 2 * DMABUFSZ);
+	dma_set_peripheral_address(__DMA, __DMA_STREAM, (uint32_t)&TIM_DMAR(TIM1));
+	dma_set_memory_address(__DMA, __DMA_STREAM, (uint32_t)frames);
+	dma_enable_half_transfer_interrupt(__DMA, __DMA_STREAM);
+	dma_enable_transfer_complete_interrupt(__DMA, __DMA_STREAM);
+	dma_enable_channel(__DMA, __DMA_STREAM);
+	nvic_enable_irq(__DMA_IRQ);
+
 	timer_set_period(TIM1, PWM_PERIOD);
 	timer_set_deadtime(TIM1, PWM_DEADTIME);
 	timer_set_enabled_off_state_in_idle_mode(TIM1);
@@ -85,11 +98,10 @@ static void pwm_disable(void)
 
 extern volatile ev_t e;
 
-void dma2_stream5_isr(void)
+void __dma_isr(void)
 {
-	if (!dma_get_interrupt_flag(DMA2, DMA_STREAM5, DMA_TCIF)) return;
-	dma_clear_interrupt_flags(DMA2, DMA_STREAM5, DMA_TCIF);
-
+	dma_target = dma_get_interrupt_flag(__DMA, __DMA_STREAM, DMA_HTIF);
+	dma_clear_interrupt_flags(__DMA, __DMA_STREAM, DMA_GIF);
 	switch (e.state) {
 	case STATE_RUNNING:
 		e.seen = false;

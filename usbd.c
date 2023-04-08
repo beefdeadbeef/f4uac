@@ -9,6 +9,18 @@
 
 #include "common.h"
 
+#define __usb_isr usb_lp_isr
+#define __usb_driver st_usbfs_v1_usb_driver
+#define __usb_irq NVIC_USB_LP_IRQ
+
+#define PKTSIZE0 16
+#define MIN_PACKET_SIZE 32
+
+#define ISO_PACKET_SIZE 576
+#define ISO_SYNC_PACKET_SIZE 3
+#define ISO_OUT_ENDP_ADDR 0x01
+#define ISO_IN_ENDP_ADDR 0x86
+
 static const char * const usb_strings[] = {
 	"Acme Corp",
 	"F4UAC"
@@ -21,7 +33,7 @@ static const struct usb_device_descriptor dev = {
 	.bDeviceClass = 0,
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
-	.bMaxPacketSize0 = 64,
+	.bMaxPacketSize0 = PKTSIZE0,
 	.idVendor = 0x6666,
 	.idProduct = 0x2701,
 	.bcdDevice = 0x0200,
@@ -30,12 +42,6 @@ static const struct usb_device_descriptor dev = {
 	.iSerialNumber = 0,
 	.bNumConfigurations = 1,
 };
-
-#define MIN_PACKET_SIZE 64
-#define ISO_PACKET_SIZE 576
-#define ISO_SYNC_PACKET_SIZE 3
-#define ISO_OUT_ENDP_ADDR 0x01
-#define ISO_IN_ENDP_ADDR 0x81
 
 struct usb_audio_format_type1_descriptor_2freq {
         struct usb_audio_format_type1_descriptor_head head;
@@ -649,15 +655,15 @@ static void usbd_set_config(usbd_device *usbd_dev, uint16_t wValue)
 
 void usbd(void)
 {
-	usbdev = usbd_init(&otgfs_usb_driver, &dev, configs,
+	usbdev = usbd_init(&__usb_driver, &dev, configs,
 			   usb_strings, sizeof(usb_strings)/sizeof(usb_strings[0]),
 			   usbd_control_buffer, sizeof(usbd_control_buffer));
 
 	usbd_register_set_config_callback(usbdev, usbd_set_config);
-	nvic_enable_irq(NVIC_OTG_FS_IRQ);
+	nvic_enable_irq(__usb_irq);
 }
 
-void otg_fs_isr(void)
+void __usb_isr(void)
 {
 	usbd_poll(usbdev);
 }

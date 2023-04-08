@@ -1,6 +1,6 @@
 #------------------------------------------ -*- tab-width: 8 -*-
 OPENCM3_DIR	= libopencm3
-DEVICE		= stm32f401cc
+DEVICE		= at32f403acgu
 BINARY		= f4uac
 OBJS		= main.o pwm.o usbd.o dsp.o trace.o trace_stdio.o
 VPATH		= $(OPENCM3_DIR)/tests/shared
@@ -29,7 +29,7 @@ TABLES		= tables.h
 all:		lib $(BINARY).elf $(BINARY).bin
 
 lib:
-		$(Q)$(MAKE) -C $(OPENCM3_DIR) lib TARGETS=stm32/f4 CFLAGS=-flto AR=$(CC)-ar
+		$(Q)$(MAKE) -C $(OPENCM3_DIR) lib TARGETS=at32/f40x CFLAGS=-flto AR=$(CC)-ar
 
 $(TABLES): %.h: %.m
 		@printf "  OCT     $@\n"
