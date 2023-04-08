@@ -522,27 +522,17 @@ static void sof_cb(void)
 	fb.cts = false;
 }
 
-static enum usbd_request_return_codes control_cb(
-	usbd_device *usbd_dev,
-	struct usb_setup_data *req,
-	uint8_t **buf,
-	uint16_t *len,
-	usbd_control_complete_callback *complete)
+static void altset_cb(usbd_device *usbd_dev,
+		      uint16_t wIndex, uint16_t wValue)
 {
 	(void) usbd_dev;
-	(void) complete;
-	(void) buf;
-	(void) len;
+	debugf("wIndex: %d wValue: %d\n", wIndex, wValue);
 
-	debugf("bmRequestType: %02x bRequest: %02x wValue: %d wIndex: %02x\n",
-	       req->bmRequestType, req->bRequest, req->wValue, req->wIndex);
-
-	if(req->bmRequestType == USB_REQ_TYPE_INTERFACE &&
-	   req->bRequest == USB_REQ_SET_INTERFACE &&
-	   req->wIndex == 1) {	/* wIndex: iface # */
-		format = req->wValue; /* wValue: alt setting # */
+	switch (wIndex) {		/* wIndex: iface # */
+	case 1:				/* wValue: alt setting # */
+		format = wValue;
 		framelen = framesize(format);
-		if (req->wValue) {
+		if (format) {
 			rb_setup(format, f8(freq));
 			e.state = STATE_FILL;
 			fb.rts = fb.cts = true;
@@ -552,10 +542,7 @@ static enum usbd_request_return_codes control_cb(
 			fb.rts = fb.cts = false;
 			total = 0;
 		}
-		return USBD_REQ_HANDLED;
 	}
-
-	return USBD_REQ_NEXT_CALLBACK;
 }
 
 static enum usbd_request_return_codes control_cs_cb(
@@ -644,11 +631,7 @@ static void usbd_set_config(usbd_device *usbd_dev, uint16_t wValue)
 
 	usbd_register_sof_callback(usbd_dev, sof_cb);
 
-	usbd_register_control_callback(
-		usbd_dev,
-		USB_REQ_TYPE_STANDARD | USB_REQ_TYPE_INTERFACE,
-		USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
-		control_cb);
+	usbd_register_set_altsetting_callback(usbd_dev, altset_cb);
 
 	usbd_register_control_callback(
 		usbd_dev,
