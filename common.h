@@ -88,7 +88,9 @@ typedef enum {
 } sample_fmt;
 
 typedef enum {
+	SAMPLE_RATE_44100 = 44100,
 	SAMPLE_RATE_48000 = 48000,
+	SAMPLE_RATE_88200 = 88200,
 	SAMPLE_RATE_96000 = 96000
 } sample_rate;
 

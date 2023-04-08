@@ -48,6 +48,11 @@ struct usb_audio_format_type1_descriptor_2freq {
         struct usb_audio_format_discrete_sampling_frequency freqs[2];
 } __attribute__((packed));
 
+struct usb_audio_format_type1_descriptor_4freq {
+        struct usb_audio_format_type1_descriptor_head head;
+        struct usb_audio_format_discrete_sampling_frequency freqs[4];
+} __attribute__((packed));
+
 static const struct {
 	struct usb_config_descriptor cdesc;
 
@@ -63,28 +68,28 @@ static const struct {
 	struct usb_interface_descriptor audio_streaming_iface_1;
 	struct usb_audio_stream_audio_endpoint_descriptor audio_streaming_cs_ep_desc_1;
 	struct usb_audio_stream_interface_descriptor audio_cs_streaming_iface_desc_1;
-	struct usb_audio_format_type1_descriptor_2freq audio_type1_format_desc_1;
+	struct usb_audio_format_type1_descriptor_4freq audio_type1_format_desc_1;
 	struct usb_audio_stream_endpoint_descriptor isochronous_ep_1;
 	struct usb_audio_stream_endpoint_descriptor synch_ep_1;
 
 	struct usb_interface_descriptor audio_streaming_iface_2;
 	struct usb_audio_stream_audio_endpoint_descriptor audio_streaming_cs_ep_desc_2;
 	struct usb_audio_stream_interface_descriptor audio_cs_streaming_iface_desc_2;
-	struct usb_audio_format_type1_descriptor_2freq audio_type1_format_desc_2;
+	struct usb_audio_format_type1_descriptor_4freq audio_type1_format_desc_2;
 	struct usb_audio_stream_endpoint_descriptor isochronous_ep_2;
 	struct usb_audio_stream_endpoint_descriptor synch_ep_2;
 
 	struct usb_interface_descriptor audio_streaming_iface_3;
 	struct usb_audio_stream_audio_endpoint_descriptor audio_streaming_cs_ep_desc_3;
 	struct usb_audio_stream_interface_descriptor audio_cs_streaming_iface_desc_3;
-	struct usb_audio_format_type1_descriptor_1freq audio_type1_format_desc_3;
+	struct usb_audio_format_type1_descriptor_2freq audio_type1_format_desc_3;
 	struct usb_audio_stream_endpoint_descriptor isochronous_ep_3;
 	struct usb_audio_stream_endpoint_descriptor synch_ep_3;
 
 	struct usb_interface_descriptor audio_streaming_iface_4;
 	struct usb_audio_stream_audio_endpoint_descriptor audio_streaming_cs_ep_desc_4;
 	struct usb_audio_stream_interface_descriptor audio_cs_streaming_iface_desc_4;
-	struct usb_audio_format_type1_descriptor_1freq audio_type1_format_desc_4;
+	struct usb_audio_format_type1_descriptor_2freq audio_type1_format_desc_4;
 	struct usb_audio_stream_endpoint_descriptor isochronous_ep_4;
 	struct usb_audio_stream_endpoint_descriptor synch_ep_4;
 
@@ -210,18 +215,24 @@ static const struct {
 	},
 	.audio_type1_format_desc_1 = {
 		.head = {
-			.bLength = sizeof(struct usb_audio_format_type1_descriptor_2freq),
+			.bLength = sizeof(struct usb_audio_format_type1_descriptor_4freq),
 			.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
 			.bDescriptorSubtype = 2,
 			.bFormatType = 1,
 			.bNrChannels = 2,
 			.bSubFrameSize = 2,
 			.bBitResolution = 16,
-			.bSamFreqType = 2,
+			.bSamFreqType = 4,
 		},
 		.freqs = {
 			{
+				.tSamFreq = 44100,
+			},
+			{
 				.tSamFreq = 48000,
+			},
+			{
+				.tSamFreq = 88200,
 			},
 			{
 				.tSamFreq = 96000,
@@ -278,18 +289,24 @@ static const struct {
 	},
 	.audio_type1_format_desc_2 = {
 		.head = {
-			.bLength = sizeof(struct usb_audio_format_type1_descriptor_2freq),
+			.bLength = sizeof(struct usb_audio_format_type1_descriptor_4freq),
 			.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
 			.bDescriptorSubtype = 2,
 			.bFormatType = 1,
 			.bNrChannels = 2,
 			.bSubFrameSize = 3,
 			.bBitResolution = 24,
-			.bSamFreqType = 2,
+			.bSamFreqType = 4,
 		},
 		.freqs = {
 			{
+				.tSamFreq = 44100,
+			},
+			{
 				.tSamFreq = 48000,
+			},
+			{
+				.tSamFreq = 88200,
 			},
 			{
 				.tSamFreq = 96000,
@@ -346,16 +363,19 @@ static const struct {
 	},
 	.audio_type1_format_desc_3 = {
 		.head = {
-			.bLength = sizeof(struct usb_audio_format_type1_descriptor_1freq),
+			.bLength = sizeof(struct usb_audio_format_type1_descriptor_2freq),
 			.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
 			.bDescriptorSubtype = 2,
 			.bFormatType = 1,
 			.bNrChannels = 2,
 			.bSubFrameSize = 4,
 			.bBitResolution = 32,
-			.bSamFreqType = 1,
+			.bSamFreqType = 2,
 		},
 		.freqs = {
+			{
+				.tSamFreq = 44100,
+			},
 			{
 				.tSamFreq = 48000,
 			}
@@ -411,16 +431,19 @@ static const struct {
 	},
 	.audio_type1_format_desc_4 = {
 		.head = {
-			.bLength = sizeof(struct usb_audio_format_type1_descriptor_1freq),
+			.bLength = sizeof(struct usb_audio_format_type1_descriptor_2freq),
 			.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
 			.bDescriptorSubtype = 2,
 			.bFormatType = 1,
 			.bNrChannels = 2,
 			.bSubFrameSize = 4,
 			.bBitResolution = 32,
-			.bSamFreqType = 1,
+			.bSamFreqType = 2,
 		},
 		.freqs = {
+			{
+				.tSamFreq = 44100,
+			},
 			{
 				.tSamFreq = 48000,
 			}
@@ -454,6 +477,7 @@ static const struct usb_config_descriptor *configs[] = {
 
 uint8_t usbd_control_buffer[64];
 
+extern void pll_setup(sample_rate freq);
 extern void rb_setup(sample_fmt format, bool f8);
 extern uint16_t rb_put(void *src, uint16_t len);
 extern void cmute(uac_rq req, uint8_t *val);
@@ -474,7 +498,7 @@ static struct {
 
 static inline bool f8(sample_rate rate)
 {
-	return rate == SAMPLE_RATE_96000;
+	return rate == SAMPLE_RATE_88200 || rate == SAMPLE_RATE_96000;
 }
 
 static void iso_tx_cb(usbd_device *usbd_dev, uint8_t ep)
@@ -602,6 +626,8 @@ static enum usbd_request_return_codes control_cs_ep_cb(
 		case UAC_SET_CUR:
 			debugf("set_cur: freq: %d new: %d\n", freq, r->freq);
 			rb_setup(format, f8(r->freq));
+			if (freq == r->freq) break;
+			pll_setup(r->freq);
 			freq = r->freq;
 			break;
 		case UAC_GET_CUR:

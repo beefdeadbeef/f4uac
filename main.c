@@ -24,6 +24,20 @@ const struct rcc_clock_scale rcc_hse_custom = {
 	.apb2_frequency = 96000000
 };
 
+const struct rcc_clock_scale rcc_hse_custom_lo = {
+	.hse_xtpre = RCC_CFGR_PLLXTPRE_HSE_CLK_PREDIV,
+	.pll_mul = RCC_CFGR_PLLRANGE_HIGH | RCC_CFGR_PLLMUL_PLL_CLK_MUL45,
+	.pll_source = RCC_CFGR_PLLSRC_HSE_CLK,
+	.hpre = RCC_CFGR_HPRE_NODIV,
+	.ppre1 = RCC_CFGR_PPRE_DIV2,
+	.ppre2 = RCC_CFGR_PPRE_DIV2,
+	.ahb_frequency  = 180000000,
+	.apb1_frequency = 90000000,
+	.apb2_frequency = 90000000
+};
+
+static const struct rcc_clock_scale *clock = &rcc_hse_custom;
+
 volatile uint32_t systicks;
 volatile ev_t e = {
 	.seen = true,
@@ -38,6 +52,32 @@ void pump(frame_type frame);
 void sys_tick_handler(void)
 {
         systicks++;
+}
+
+void pll_setup(sample_rate rate)
+{
+	const struct rcc_clock_scale *clk;
+
+	debugf("rate=%d\n", rate);
+
+	switch (rate) {
+	case SAMPLE_RATE_44100:
+	case SAMPLE_RATE_88200:
+		clk = &rcc_hse_custom_lo;
+		break;
+	case SAMPLE_RATE_48000:
+	case SAMPLE_RATE_96000:
+		clk = &rcc_hse_custom;
+	}
+
+	if (clk == clock) return;
+
+	rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSICLK);
+
+	rcc_osc_off(RCC_PLL);
+	while(rcc_is_osc_ready(RCC_PLL));
+	rcc_clock_setup_pll(clk);
+	clock = clk;
 }
 
 void usart1_isr(void)
@@ -75,7 +115,7 @@ int main() {
 /*
  * clocks
  */
-	rcc_clock_setup_pll(&rcc_hse_custom);
+	rcc_clock_setup_pll(clock);
 	rcc_periph_clock_enable(RCC_AFIO);
 	rcc_periph_clock_enable(RCC_CRS);
 	rcc_periph_clock_enable(RCC_DMA1);
