@@ -448,7 +448,7 @@ static const struct usb_config_descriptor *configs[] = {
 
 uint8_t usbd_control_buffer[64];
 
-extern void rb_setup(sample_fmt format, sample_rate freq);
+extern void rb_setup(sample_fmt format, bool f8);
 extern uint16_t rb_put(void *src, uint16_t len);
 extern void cmute(uac_rq req, uint8_t *val);
 extern void cvolume(uac_rq req, uint16_t ch, int16_t *val);
@@ -465,6 +465,11 @@ static struct {
 	bool rts;
 	bool cts;
 } fb;
+
+static inline bool f8(sample_rate rate)
+{
+	return rate == SAMPLE_RATE_96000;
+}
 
 static void iso_tx_cb(usbd_device *usbd_dev, uint8_t ep)
 {
@@ -498,8 +503,8 @@ static void sof_cb(void)
 	if (format == SAMPLE_FORMAT_NONE) return;
 
 	if (!--sofn) {
-		feedback = (e.state == STATE_FILL) ? FEEDBACK :
-			FEEDBACK_MIN + DELTA_SHIFT(delta);
+		feedback = ((e.state == STATE_FILL) ? FEEDBACK :
+			    FEEDBACK_MIN + DELTA_SHIFT(delta)) << f8(freq);
 		trace(2, feedback);
 		sofn = (1 << SOF_RATE);
 		delta = 0;
@@ -538,15 +543,15 @@ static enum usbd_request_return_codes control_cb(
 		format = req->wValue; /* wValue: alt setting # */
 		framelen = framesize(format);
 		if (req->wValue) {
+			rb_setup(format, f8(freq));
 			e.state = STATE_FILL;
 			fb.rts = fb.cts = true;
 		} else {
-			freq = SAMPLE_RATE_48000;
+			rb_setup(format, false);
 			e.state = total ? STATE_DRAIN : STATE_CLOSED;
 			fb.rts = fb.cts = false;
 			total = 0;
 		}
-		rb_setup(format, freq);
 		return USBD_REQ_HANDLED;
 	}
 
@@ -602,8 +607,9 @@ static enum usbd_request_return_codes control_cs_ep_cb(
 
 		switch (req->bRequest) {
 		case UAC_SET_CUR:
-			rb_setup(format, freq = r->freq);
-			debugf("set_cur: freq: %d\n", freq);
+			debugf("set_cur: freq: %d new: %d\n", freq, r->freq);
+			rb_setup(format, f8(r->freq));
+			freq = r->freq;
 			break;
 		case UAC_GET_CUR:
 			debugf("get_cur: freq: %d\n", freq);

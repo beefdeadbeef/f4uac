@@ -77,25 +77,25 @@ static void set_scale()
 	} [format.fmt];
 }
 
-void rb_setup(sample_fmt fmt, sample_rate rate)
+void rb_setup(sample_fmt fmt, bool f8)
 {
 	rb.u32 = 0;
 
+	format.f8 = f8;
 	format.fmt = fmt;
-	format.f8 = rate == SAMPLE_RATE_96000;
-	format.nframes = format.f8 ?
+	format.nframes = f8 ?
 		NFRAMES >> UPSAMPLE_SHIFT_8 :
 		NFRAMES >> UPSAMPLE_SHIFT_16;
 	format.framesize = framesize(fmt);
 	format.chunksize = format.framesize * format.nframes;
-	format.taps = format.f8 ? hc8 : hc16;
+	format.taps = f8 ? hc8 : hc16;
 	reset_zstate();
 	set_scale();
 }
 
 static void __attribute__((constructor)) rb_init(void)
 {
-	rb_setup(SAMPLE_FORMAT_NONE, SAMPLE_RATE_48000);
+	rb_setup(SAMPLE_FORMAT_NONE, false);
 }
 
 uint16_t rb_put(void *src, uint16_t len)
