@@ -235,14 +235,14 @@ static void upsample(int32_t *dst, const int32_t *src)
 
 }
 
-#if (ORDER == 5)
+#if (NS_ORDER == 5)
 const int16_t abg[] = { 45, 563, 3034, 9673, 18219, -32, -11 };
-#elif (ORDER == 4)
+#elif (NS_ORDER == 4)
 const int16_t abg[] = { 514, 4453, 16843, 11826, -59, -98 };
 #else
 const int16_t abg[] = { 2460, 1379, 32148, -45 };
 #endif
-static int32_t zstate[NCHANNELS * (ORDER + 1)];
+static int32_t zstate[NCHANNELS * (NS_ORDER + 1)];
 
 static void reset_zstate()
 {
@@ -251,13 +251,13 @@ static void reset_zstate()
 
 static uint16_t ns(const int32_t *src, int32_t *z)
 {
-	const uint32_t *g = (uint32_t *)&abg[ORDER];
+	const uint32_t *g = (uint32_t *)&abg[NS_ORDER];
 	const uint32_t *x = (uint32_t *)abg;
 	int32_t sum;
 	int16_t p;
 
 	sum = *src - z[0];
-#if (ORDER == 5)
+#if (NS_ORDER == 5)
 	__smlawb(z[5], sum, *x, z[5]);
 	__smlawt(z[4], sum, *x++, z[4]);
 	__smlawt(z[4], z[3], *g, z[5]);
@@ -266,7 +266,7 @@ static uint16_t ns(const int32_t *src, int32_t *z)
 	__smlawt(z[2], sum, *x++, z[2]);
 	__smlawb(z[2], z[1], *g, z[3]);
 	__smlawb(z[1], sum, *x, z[1]);
-#elif (ORDER == 4)
+#elif (NS_ORDER == 4)
 	__smlawb(z[4], sum, *x, z[4]);
 	__smlawt(z[4], z[3], *g, z[4]);
 	__smlawt(z[3], sum, *x++, z[3]);
@@ -282,16 +282,16 @@ static uint16_t ns(const int32_t *src, int32_t *z)
 #endif
 	z[1] += z[2];
 	sum += z[1] + z[0];
-	z[0] = (p = __ssat(sum, PWM_SHIFT, (32 - PWM_SHIFT))) << (32 - PWM_SHIFT);
+	z[0] = (p = __ssat(sum, PWM_WIDTH, PWM_SHIFT)) << PWM_SHIFT;
 
-	return p + (1 << (PWM_SHIFT - 1));
+	return p + (1 << (PWM_WIDTH - 1));
 }
 
 static void sigmadelta(uint16_t *dst, const int32_t *src)
 {
 	for (uint16_t nframes = NFRAMES; nframes; nframes--) {
 		*dst++ = ns(src++, zstate);
-		*dst++ = ns(src++, &zstate[ORDER + 1]);
+		*dst++ = ns(src++, &zstate[NS_ORDER + 1]);
 	}
 }
 

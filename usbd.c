@@ -249,7 +249,7 @@ static const struct {
 		.bmAttributes = USB_ENDPOINT_ATTR_ISOCHRONOUS | USB_ENDPOINT_ATTR_FEEDBACK,
 		.wMaxPacketSize = ISO_SYNC_PACKET_SIZE,
 		.bInterval = 1,
-		.bRefresh = SOF_RATE,
+		.bRefresh = SOF_SHIFT,
 		.bSynchAddress = 0,
 	},
 
@@ -323,7 +323,7 @@ static const struct {
 		.bmAttributes = USB_ENDPOINT_ATTR_ISOCHRONOUS | USB_ENDPOINT_ATTR_FEEDBACK,
 		.wMaxPacketSize = ISO_SYNC_PACKET_SIZE,
 		.bInterval = 1,
-		.bRefresh = SOF_RATE,
+		.bRefresh = SOF_SHIFT,
 		.bSynchAddress = 0,
 	},
 
@@ -391,7 +391,7 @@ static const struct {
 		.bmAttributes = USB_ENDPOINT_ATTR_ISOCHRONOUS | USB_ENDPOINT_ATTR_FEEDBACK,
 		.wMaxPacketSize = ISO_SYNC_PACKET_SIZE,
 		.bInterval = 1,
-		.bRefresh = SOF_RATE,
+		.bRefresh = SOF_SHIFT,
 		.bSynchAddress = 0,
 	}
 };
@@ -452,7 +452,7 @@ static void iso_rx_cb(usbd_device *usbd_dev, uint8_t ep)
 
 static void sof_cb(void)
 {
-	static uint32_t sofn = (1 << SOF_RATE);
+	static uint32_t sofn = (1 << SOF_SHIFT);
 	static uint32_t feedback;
 
 	if (format == SAMPLE_FORMAT_NONE) return;
@@ -461,7 +461,7 @@ static void sof_cb(void)
 		feedback = ((e.state == STATE_FILL) ? FEEDBACK :
 			    FEEDBACK_MIN + DELTA_SHIFT(delta)) << f8(freq);
 		trace(2, feedback);
-		sofn = (1 << SOF_RATE);
+		sofn = (1 << SOF_SHIFT);
 		delta = 0;
 		fb.rts = true;
 	}
