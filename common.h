@@ -83,8 +83,7 @@ typedef enum {
 	SAMPLE_FORMAT_NONE,
 	SAMPLE_FORMAT_S16,
 	SAMPLE_FORMAT_S24,
-	SAMPLE_FORMAT_S32,
-	SAMPLE_FORMAT_F32
+	SAMPLE_FORMAT_S32
 } sample_fmt;
 
 typedef enum {
@@ -100,11 +99,10 @@ typedef enum {
 static inline uint16_t framesize(sample_fmt fmt)
 {
 	return (const uint8_t []) {
-		4 * NCHANNELS,	/* SAMPLE_FORMAT_NONE */
+		2 * NCHANNELS,	/* SAMPLE_FORMAT_NONE */
 		2 * NCHANNELS,	/* SAMPLE_FORMAT_S16 */
 		3 * NCHANNELS,	/* SAMPLE_FORMAT_S24 */
 		4 * NCHANNELS,	/* SAMPLE_FORMAT_S32 */
-		4 * NCHANNELS	/* SAMPLE_FORMAT_F32 */
 	} [fmt];
 }
 

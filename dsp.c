@@ -57,8 +57,8 @@ static struct {
 	uint16_t nframes;
 	uint16_t framesize;
 	uint16_t chunksize;
-	float scale;
-	const float *taps;
+	uint16_t scale;
+	const int16_t *taps;
 } format;
 
 static bool muted;
@@ -68,13 +68,7 @@ static void reset_zstate();
 static void set_scale()
 {
 	uint16_t idx = muted ? VOLSTEPS - 1 : volidx;
-	format.scale = scale[idx]  / (const float[]) {
-		[SAMPLE_FORMAT_NONE] = 1<<0,
-		[SAMPLE_FORMAT_S16] = 1<<15,
-		[SAMPLE_FORMAT_S24] = 1<<23,
-		[SAMPLE_FORMAT_S32] = 1<<31,
-		[SAMPLE_FORMAT_F32] = 1<<0
-	} [format.fmt];
+	format.scale = scale[idx];
 }
 
 void rb_setup(sample_fmt fmt, bool f8)
@@ -197,37 +191,35 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 #define STATELEN (BACKLOG(8) + NSAMPLES(8))
 #endif
 
-static void upsample(float *dst, const float *src)
+static void upsample(int32_t *dst, const int32_t *src)
 {
-	static float state[STATELEN];
-	float *samples = &state[BACKLOG(8)];
-	float *backlog = state;
-	uint16_t i, nframes = format.nframes;
+	static int32_t state[STATELEN];
+	int32_t *samples = &state[BACKLOG(8)];
+	int32_t *backlog = state;
+	unsigned i, nframes = format.nframes;
 
 	while (nframes--) {
-		const float *tap = format.taps;
+		const uint32_t *tap = (uint32_t *)format.taps;
 
 		*samples++ = *src++;
 		*samples++ = *src++;
 
 		uint32_t flip = !format.f8;
 	flop:
-
-#pragma GCC unroll 8
 		for (i = UPSAMPLE(8); i; i--) {
-		    float *sample = backlog;
-		    float suml, sumr;
-		    uint16_t k;
+			int32_t *sample = backlog;
+			int32_t suml, sumr;
 
-		    suml = sumr = 0.0f;
-		    for (k = PHASELEN(8); k; k--) {
-			suml += *sample++ * *tap;
-			sumr += *sample++ * *tap;
-			tap++;
-		    }
+			suml = sumr = 0;
+			for (int k = PHASELEN(8)>>1; k; k--, tap++) {
+				__smlawb(suml, *sample++, *tap, suml);
+				__smlawb(sumr, *sample++, *tap, sumr);
+				__smlawt(suml, *sample++, *tap, suml);
+				__smlawt(sumr, *sample++, *tap, sumr);
+			}
 
-		    *dst++ = suml;
-		    *dst++ = sumr;
+			*dst++ = suml;
+			*dst++ = sumr;
 		}
 
 		if (flip--) goto flop;
@@ -242,59 +234,69 @@ static void upsample(float *dst, const float *src)
 
 }
 
-#define QF (1U << (PWM_SHIFT - 1))
 #if (ORDER == 5)
-const float abg[] = { .0028f, .0344f, .1852f, .5904f, 1.1120f, .002f, .0007f };
+const int16_t abg[] = { 45, 563, 3034, 9673, 18219, -32, -11 };
 #elif (ORDER == 4)
-const float abg[] = { .0157f, .1359f, .514f, .3609f, .0018, .003f };
+const int16_t abg[] = { 514, 4453, 16843, 11826, -59, -98 };
 #else
-const float abg[] = { .0751f, .0421f, .9811, .0014f };
+const int16_t abg[] = { 2460, 1379, 32148, -45 };
 #endif
-static float zstate[NCHANNELS * (ORDER + 1)];
+static int32_t zstate[NCHANNELS * (ORDER + 1)];
 
 static void reset_zstate()
 {
 	bzero(zstate, sizeof(zstate));
 }
 
-static uint16_t ns(const float *src, float *z)
+static uint16_t ns(const int32_t *src, int32_t *z)
 {
-	const float *x = abg;
-	const float *g = &abg[ORDER];
-	float sum;
-	int8_t p;
+	const uint32_t *g = (uint32_t *)&abg[ORDER];
+	const uint32_t *x = (uint32_t *)abg;
+	int32_t sum;
+	int16_t p;
 
 	sum = *src - z[0];
 #if (ORDER == 5)
-	z[5] += *x++ * sum;
-	z[4] += z[5] + *x++ * sum + g[1] * z[3];
-	z[3] += z[4] + *x++ * sum;
+	__smlawb(z[5], sum, *x, z[5]);
+	__smlawt(z[4], sum, *x++, z[4]);
+	__smlawt(z[4], z[3], *g, z[5]);
+	__smlawb(z[3], sum, *x, z[3]);
+	z[3] += z[4];
+	__smlawt(z[2], sum, *x++, z[2]);
+	__smlawb(z[2], z[1], *g, z[3]);
+	__smlawb(z[1], sum, *x, z[1]);
 #elif (ORDER == 4)
-	z[4] += *x++ * sum + g[1] * z[3];
-	z[3] += z[4] + *x++ * sum;
+	__smlawb(z[4], sum, *x, z[4]);
+	__smlawt(z[4], z[3], *g, z[4]);
+	__smlawt(z[3], sum, *x++, z[3]);
+	z[3] += z[4];
+	__smlawb(z[2], sum, *x, z[2]);
+	__smlawb(z[2], z[1], *g, z[3]);
+	__smlawt(z[1], sum, *x, z[1]);
 #else
-	z[3] += *x++ * sum;
+	__smlawb(z[3], sum, *x, z[3]);
+	__smlawt(z[2], sum, *x++, z[2]);
+	__smlawb(z[2], z[1], *g, z[3]);
+	__smlawb(z[1], sum, *x, z[1]);
 #endif
-	z[2] += z[3] + *x++ * sum + g[0] * z[1];
-	z[1] += z[2] + *x * sum;
+	z[1] += z[2];
 	sum += z[1] + z[0];
-	z[0] = (p = __ssat((int32_t)(sum * QF), PWM_SHIFT)) / (float)QF;
+	z[0] = (p = __ssat(sum, PWM_SHIFT, (32 - PWM_SHIFT))) << (32 - PWM_SHIFT);
 
-	return QF + p;
+	return p + (1 << (PWM_SHIFT - 1));
 }
 
-static void sigmadelta(uint16_t *dst, const float *src)
+static void sigmadelta(uint16_t *dst, const int32_t *src)
 {
-#pragma GCC unroll 4
 	for (uint16_t nframes = NFRAMES; nframes; nframes--) {
 		*dst++ = ns(src++, zstate);
 		*dst++ = ns(src++, &zstate[ORDER + 1]);
 	}
 }
 
-static void resample(uint16_t *dst, const float *src)
+static void resample(uint16_t *dst, const int32_t *src)
 {
-	float samples[NCHANNELS * NFRAMES];
+	int32_t samples[NCHANNELS * NFRAMES];
 
 	upsample(samples, src);
 	sigmadelta(dst, samples);
@@ -303,25 +305,16 @@ static void resample(uint16_t *dst, const float *src)
 /*
  *
  */
-static inline float *reframe_f32(float *dst, const float *src, uint16_t nframes)
+static inline int32_t *reframe_s32(int32_t *dst, const int32_t *src, uint16_t nframes)
 {
 	while (nframes--) {
-		*dst++ = format.scale * *src++;
-		*dst++ = format.scale * *src++;
+		*dst++ = (format.scale * (int64_t)*src++) >> 16;
+		*dst++ = (format.scale * (int64_t)*src++) >> 16;
 	}
 	return dst;
 }
 
-static inline float *reframe_s32(float *dst, const int32_t *src, uint16_t nframes)
-{
-	while (nframes--) {
-		*dst++ = format.scale * *src++;
-		*dst++ = format.scale * *src++;
-	}
-	return dst;
-}
-
-static inline float *reframe_s24(float *dst, const uint16_t *src, uint16_t nframes)
+static inline int32_t *reframe_s24(int32_t *dst, const uint16_t *src, uint16_t nframes)
 {
 	union {
 		struct __attribute__((packed)) {
@@ -335,14 +328,14 @@ static inline float *reframe_s24(float *dst, const uint16_t *src, uint16_t nfram
 		s.u[0] = *src++;
 		s.u[1] = *src++;
 		s.u[2] = *src++;
-		*dst++ = format.scale * s.l;
-		*dst++ = format.scale * s.r;
+		*dst++ = (format.scale * (int64_t)s.l) >> 8;
+		*dst++ = (format.scale * (int64_t)s.r) >> 8;
 	}
 
 	return dst;
 }
 
-static inline float *reframe_s16(float *dst, const int16_t *src, uint16_t nframes)
+static inline int32_t *reframe_s16(int32_t *dst, const int16_t *src, uint16_t nframes)
 {
 	while (nframes--) {
 		*dst++ = format.scale * *src++;
@@ -351,14 +344,11 @@ static inline float *reframe_s16(float *dst, const int16_t *src, uint16_t nframe
 	return dst;
 }
 
-static float *reframe(float *dst, const void *src, uint16_t len)
+static int32_t *reframe(int32_t *dst, const void *src, uint16_t len)
 {
 	uint16_t nframes = len / format.framesize;
 
 	switch (format.fmt) {
-	case SAMPLE_FORMAT_F32:
-		return reframe_f32(dst, src, nframes);
-
 	case SAMPLE_FORMAT_S32:
 		return reframe_s32(dst, src, nframes);
 
@@ -383,14 +373,14 @@ static void resample_ringbuf(uint16_t *dst)
 {
 	uint16_t count, len = format.chunksize;
 	uint16_t tail = 0, framelen = format.framesize;
-	float *p, *buf;
+	int32_t *p, *buf;
 	rb_t r;
 
 	r.u32 = rb.u32;
 
 	if (rb_count(r) < len) return;
 
-	p = buf = alloca(format.nframes * framesize(SAMPLE_FORMAT_F32));
+	p = buf = alloca(format.nframes * NCHANNELS * sizeof(int32_t));
 
 	count = rb_count_to_end(r);
 
@@ -423,9 +413,9 @@ static void resample_table(uint16_t *dst)
 	uint32_t count, slen = sizeof(stbl) / sizeof(stbl[0]);
 	uint32_t nframes = format.nframes;
 	static uint32_t idx;
-	float *p, *buf;
+	int32_t *p, *buf;
 
-	p = buf = alloca(format.chunksize);
+	p = buf = alloca(format.nframes * NCHANNELS * sizeof(int32_t));
 
 	while(nframes) {
 		count = MIN(nframes, slen - idx);
