@@ -15,6 +15,7 @@
 /*
  *
  */
+static int32_t framebuf[NCHANNELS * NFRAMES];
 static uint8_t ringbuf[RBSIZE + 4] __attribute__((aligned(4)));
 
 typedef union {
@@ -296,10 +297,8 @@ static void sigmadelta(uint16_t *dst, const int32_t *src)
 
 static void resample(uint16_t *dst, const int32_t *src)
 {
-	int32_t samples[NCHANNELS * NFRAMES];
-
-	upsample(samples, src);
-	sigmadelta(dst, samples);
+	upsample(framebuf, src);
+	sigmadelta(dst, framebuf);
 }
 
 /*
@@ -380,7 +379,7 @@ static void resample_ringbuf(uint16_t *dst)
 
 	if (rb_count(r) < len) return;
 
-	p = buf = alloca(format.nframes * NCHANNELS * sizeof(int32_t));
+	p = buf = &framebuf[NCHANNELS * (NFRAMES - format.nframes)];
 
 	count = rb_count_to_end(r);
 
@@ -415,7 +414,7 @@ static void resample_table(uint16_t *dst)
 	static uint32_t idx;
 	int32_t *p, *buf;
 
-	p = buf = alloca(format.nframes * NCHANNELS * sizeof(int32_t));
+	p = buf = &framebuf[NCHANNELS * (NFRAMES - format.nframes)];
 
 	while(nframes) {
 		count = MIN(nframes, slen - idx);
