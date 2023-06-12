@@ -7,7 +7,7 @@ Loose implementation of excellent ST appnote [AN5142](https://www.st.com/resourc
 using so-called `Black Pill` [boards](https://github.com/WeActStudio/WeActStudio.BlackPill).
 
 While overall scheme remains the same, some significant differences exists:
-- S16/S24/S32/FLOAT@44.1/48kHz and S16/S24@88.2/96kHz as input;
+- S16/S24/S32@44.1/48kHz and S16/S24@88.2/96kHz as input;
 - 8x/16x upsampler with 48/96-tap FIR interpolator instead of linear;
 - 5th order noise shaper instead of simple error feedback;
 - 8bit/768kHz PWM as output.
