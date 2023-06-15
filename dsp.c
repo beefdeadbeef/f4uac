@@ -244,11 +244,11 @@ static void upsample(float *dst, const float *src)
 
 #define QF (1U << (PWM_SHIFT - 1))
 #if (ORDER == 5)
-const float abg[] = { .0028f, .0344f, .1852f, .5904f, 1.1120f, .002f, .0007f };
+const float abg[] = { .0028f, .0344f, .1852f, .5904f, 1.1120f, -.002f, -.0007f };
 #elif (ORDER == 4)
-const float abg[] = { .0157f, .1359f, .514f, .3609f, .0018, .003f };
+const float abg[] = { .0157f, .1359f, .514f, .3609f, -.0018, -.003f };
 #else
-const float abg[] = { .0751f, .0421f, .9811, .0014f };
+const float abg[] = { .0751f, .0421f, .9811, -.0014f };
 #endif
 static float zstate[NCHANNELS * (ORDER + 1)];
 
