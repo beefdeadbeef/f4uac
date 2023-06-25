@@ -29,7 +29,7 @@
  */
 #define PWM_WIDTH 	8
 #define PWM_PERIOD 	(1 << PWM_WIDTH)
-#define PWM_SHIFT	(32 - PWM_WIDTH)
+#define PWM_SHIFT	(31 - PWM_WIDTH)
 
 /*
  * noise shaper order
@@ -132,3 +132,7 @@ typedef enum  {
 	UAC_GET_MAX,
 	UAC_GET_RES
 } uac_rq;
+
+/*
+ */
+#define MIN(a,b) ((a) < (b) ? (a) : (b))

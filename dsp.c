@@ -17,6 +17,7 @@
  */
 static int32_t framebuf[NCHANNELS * NFRAMES];
 static uint8_t ringbuf[RBSIZE + 4] __attribute__((aligned(4)));
+static int16_t taps[NUMTAPS16];
 
 typedef union {
 	struct {
@@ -69,7 +70,11 @@ static void reset_zstate();
 static void set_scale()
 {
 	uint16_t idx = muted ? VOLSTEPS - 1 : volidx;
-	format.scale = scale[idx];
+
+	if (idx == format.scale) return;
+	for (int i=0; i < (format.f8 ? NUMTAPS8 : NUMTAPS16); i++)
+		taps[i] = (format.taps[i] * (int32_t)scale[idx]) >> 16;
+	format.scale = idx;
 }
 
 void rb_setup(sample_fmt fmt, bool f8)
@@ -108,7 +113,7 @@ uint16_t rb_put(void *src, uint16_t len)
 	count = rb_space_to_end(r);
 
 	if (count) {
-		count = (count < len) ? count : len;
+		count = MIN(count, len);
 		memcpy((void *)&ringbuf[r.head], src, count);
 		len -= count;
 		src += count;
@@ -129,7 +134,6 @@ void cmute(uac_rq req, uint8_t *val)
 	switch (req) {
 	case UAC_SET_CUR:
 		muted = *val;
-		set_scale();
 		break;
 	case UAC_GET_CUR:
 		*val = muted;
@@ -148,7 +152,6 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 		uint16_t i = 0;
 		while (i < VOLSTEPS && db[i] > *val) i++;
 		volidx = i;
-		set_scale();
 		break;
 	}
 	case UAC_SET_MIN:
@@ -168,7 +171,7 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 		*val = 256;	/* 1dB step */
 	}
 	debugf("req: %02x chan: %02x val: %d (%d)\n",
-	       req, chan, *val, volume.level);
+	       req, chan, *val, volidx);
 }
 
 #pragma GCC push_options
@@ -200,7 +203,7 @@ static void upsample(int32_t *dst, const int32_t *src)
 	unsigned i, nframes = format.nframes;
 
 	while (nframes--) {
-		const uint32_t *tap = (uint32_t *)format.taps;
+		const uint32_t *tap = (uint32_t *)taps;
 
 		*samples++ = *src++;
 		*samples++ = *src++;
@@ -297,6 +300,7 @@ static void sigmadelta(uint16_t *dst, const int32_t *src)
 
 static void resample(uint16_t *dst, const int32_t *src)
 {
+	set_scale();
 	upsample(framebuf, src);
 	sigmadelta(dst, framebuf);
 }
@@ -304,15 +308,6 @@ static void resample(uint16_t *dst, const int32_t *src)
 /*
  *
  */
-static inline int32_t *reframe_s32(int32_t *dst, const int32_t *src, uint16_t nframes)
-{
-	while (nframes--) {
-		*dst++ = (format.scale * (int64_t)*src++) >> 16;
-		*dst++ = (format.scale * (int64_t)*src++) >> 16;
-	}
-	return dst;
-}
-
 static inline int32_t *reframe_s24(int32_t *dst, const uint16_t *src, uint16_t nframes)
 {
 	union {
@@ -327,8 +322,8 @@ static inline int32_t *reframe_s24(int32_t *dst, const uint16_t *src, uint16_t n
 		s.u[0] = *src++;
 		s.u[1] = *src++;
 		s.u[2] = *src++;
-		*dst++ = (format.scale * (int64_t)s.l) >> 8;
-		*dst++ = (format.scale * (int64_t)s.r) >> 8;
+		*dst++ = s.l << 8;
+		*dst++ = s.r << 8;
 	}
 
 	return dst;
@@ -337,8 +332,8 @@ static inline int32_t *reframe_s24(int32_t *dst, const uint16_t *src, uint16_t n
 static inline int32_t *reframe_s16(int32_t *dst, const int16_t *src, uint16_t nframes)
 {
 	while (nframes--) {
-		*dst++ = format.scale * *src++;
-		*dst++ = format.scale * *src++;
+		*dst++ = *src++ << 16;
+		*dst++ = *src++ << 16;
 	}
 	return dst;
 }
@@ -349,7 +344,8 @@ static int32_t *reframe(int32_t *dst, const void *src, uint16_t len)
 
 	switch (format.fmt) {
 	case SAMPLE_FORMAT_S32:
-		return reframe_s32(dst, src, nframes);
+		memcpy((void *)dst, src, len);
+		return dst + nframes * NCHANNELS;
 
 	case SAMPLE_FORMAT_S24:
 		return reframe_s24(dst, src, nframes);
@@ -363,11 +359,6 @@ static int32_t *reframe(int32_t *dst, const void *src, uint16_t len)
 	return dst;
 }
 
-#pragma GCC pop_options
-
-/*
- *
- */
 static void resample_ringbuf(uint16_t *dst)
 {
 	uint16_t count, len = format.chunksize;
@@ -384,7 +375,7 @@ static void resample_ringbuf(uint16_t *dst)
 	count = rb_count_to_end(r);
 
 	if (count) {
-		count = (count < len) ? count : len;
+		count = MIN(count, len);
 		if ((tail = count % framelen)) {
 			*(uint32_t *)&ringbuf[RBSIZE] = *(uint32_t *)ringbuf;
 			tail = framelen - tail;
@@ -405,8 +396,6 @@ static void resample_ringbuf(uint16_t *dst)
 
 /*
  */
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-
 static void resample_table(uint16_t *dst)
 {
 	uint32_t count, slen = sizeof(stbl) / sizeof(stbl[0]);
@@ -420,8 +409,8 @@ static void resample_table(uint16_t *dst)
 		count = MIN(nframes, slen - idx);
 		nframes -= count;
 		while(count--) {
-			*p++ = format.scale * stbl[idx];
-			*p++ = - format.scale * stbl[idx];
+			*p++ = stbl[idx] << 16;
+			*p++ = - stbl[idx] << 16;
 			idx++;
 		}
 		if (idx == slen) idx = 0;
