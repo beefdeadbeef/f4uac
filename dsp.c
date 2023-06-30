@@ -181,6 +181,76 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 #pragma GCC optimize 3
 
 /*
+ * TF2 biquads
+ */
+const float lowpass[] = {
+	.00006080142895919634f,
+	.00012160285791839268f,
+	.00006080142895919634f,
+	1.9711486088434251f,
+	-.971391814559262f,
+	/**/
+	.00006131519781136579f,
+	.00012263039562273158f,
+	.00006131519781136579f,
+	1.9878047101153298f,
+	-.9880499709065751f,
+};
+
+const float highpass[] = {
+	.9856351058506718f,
+	-1.9712702117013436f,
+	.9856351058506718f,
+	1.9711486088434251f,
+	-.971391814559262f,
+	/**/
+	.9939636702554763f,
+	-1.9879273405109525f,
+	.9939636702554763f,
+	1.9878047101153298f,
+	-.9880499709065751f,
+};
+
+static float qqstate[4 * NCHANNELS];
+
+static inline float qq(float x, float *z, const float *ab)
+{
+	float y;
+
+	y = x * ab[0] + z[0];
+	z[0] = x * ab[1] + y * ab[3]+ z[1];
+	z[1] = x * ab[2] + y * ab[4];
+
+	return y;
+}
+
+static void filter(frame_t *frame)
+{
+	unsigned nframes = format.nframes;
+	float l, r, x;
+
+	while(nframes--) {
+		l = frame->l;
+		r = frame->r;
+
+		x = qq(l, &qqstate[0], &highpass[0]);
+		x = qq(x, &qqstate[2], &highpass[5]);
+		frame->l = x;
+
+		x = qq(r, &qqstate[4], &highpass[0]);
+		x = qq(x, &qqstate[6], &highpass[5]);
+		frame->r = x;
+
+		x = .5f * (l + r);
+		x = qq(x, &qqstate[8], &lowpass[0]);
+		x = qq(x, &qqstate[10], &lowpass[5]);
+		frame->c = x;
+
+		frame++;
+	}
+}
+
+/*
  * FIR filters
  */
 #define UPSAMPLE(x) (1U << UPSAMPLE_SHIFT_##x)
@@ -291,8 +361,9 @@ static void sigmadelta(uint16_t *dst, const frame_t *src)
 	}
 }
 
-static void resample(uint16_t *dst, const frame_t *src)
+static void resample(uint16_t *dst, frame_t *src)
 {
+	filter(src);
 	upsample(framebuf, src);
 	sigmadelta(dst, framebuf);
 }
@@ -305,7 +376,6 @@ static inline void reframe_f32(frame_t *dst, const float *src, uint16_t nframes)
 	while (nframes--) {
 		dst->l = format.scale * *src++;
 		dst->r = format.scale * *src++;
-		dst->c = .5f * (dst->l + dst->r);
 		dst++;
 	}
 }
@@ -315,7 +385,6 @@ static inline void reframe_s32(frame_t *dst, const int32_t *src, uint16_t nframe
 	while (nframes--) {
 		dst->l = format.scale * *src++;
 		dst->r = format.scale * *src++;
-		dst->c = .5f * (dst->l + dst->r);
 		dst++;
 	}
 }
@@ -336,7 +405,6 @@ static inline void reframe_s24(frame_t *dst, const uint16_t *src, uint16_t nfram
 		s.u[2] = *src++;
 		dst->l = format.scale * s.l;
 		dst->r = format.scale * s.r;
-		dst->c = .5f * (dst->l + dst->r);
 		dst++;
 	}
 }
@@ -346,7 +414,6 @@ static inline void reframe_s16(frame_t *dst, const int16_t *src, uint16_t nframe
 	while (nframes--) {
 		dst->l = format.scale * *src++;
 		dst->r = format.scale * *src++;
-		dst->c = .5f * (dst->l + dst->r);
 		dst++;
 	}
 }
@@ -381,8 +448,6 @@ static uint16_t reframe(frame_t *dst, const void *src, uint16_t len)
 
 	return nframes;
 }
-
-#pragma GCC pop_options
 
 /*
  *
@@ -439,7 +504,6 @@ static void resample_table(uint16_t *dst)
 		while(count--) {
 			p->l = format.scale * stbl[idx];
 			p->r = - format.scale * stbl[idx];
-			p->c = 0;
 			idx++;
 			p++;
 		}
