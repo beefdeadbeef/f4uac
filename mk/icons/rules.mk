@@ -4,7 +4,7 @@ CONVERT		= convert
 SED		= sed
 
 $(addsuffix .svg,$(ICONS)):
-	$(Q)$(CURL) -s --output $@ https://api.iconify.design/bi/$(subst _,-,$@)\?download=1\&color=black\&width=$(ICONSZ)\&height=$(ICONSZ)
+	$(Q)$(CURL) -s --output $@ https://api.iconify.design/mdi/$(subst _,-,$@)\?download=1\&color=black\&width=$(ICONSZ)\&height=$(ICONSZ)
 
 %.xbm:	%.svg
 	$(Q)$(CONVERT) -rotate $(ROTATE) -equalize $< xbm:$@

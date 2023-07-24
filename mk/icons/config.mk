@@ -2,22 +2,13 @@
 VPATH		+= mk/icons
 OBJS		+= icons.o
 
-ICONS_BIG	= 	play_circle \
-			pause_circle \
-			skip_backward_circle \
-			fast_forward_circle
+ICONS_BIG	= 	play_circle_outline \
+			pause_circle_outline
 
-ICONS_SMALL	=	headphones \
-			speaker \
+ICONS_SMALL	=	headphones_box \
+			subwoofer \
 			volume_mute \
-			usb_symbol \
-			caret_down \
-			caret_left \
-			caret_right \
-			caret_up
-
-ICONS_UPDN	=  	headphones speaker usb_symbol \
-			caret_up caret_down
+			usb
 
 ICONS		= 	$(ICONS_BIG) $(ICONS_SMALL)
 
@@ -25,4 +16,3 @@ ROTATE		=	90
 
 $(addsuffix .svg,$(ICONS_BIG)):		ICONSZ = 64
 $(addsuffix .svg,$(ICONS_SMALL)):	ICONSZ = 32
-$(addsuffix .xbm,$(ICONS_UPDN)):	ROTATE = 270
