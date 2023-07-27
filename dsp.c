@@ -452,10 +452,13 @@ static uint16_t reframe(frame_t *dst, const void *src, uint16_t len)
 /*
  *
  */
-static void resample_ringbuf(uint16_t *dst)
+extern uint16_t *pframe(page_t page);
+
+void pump(page_t page)
 {
 	uint16_t count, len = format.chunksize;
 	uint16_t tail = 0, framelen = format.framesize;
+	uint16_t *dst = pframe(page);
 	frame_t *p, *buf;
 	rb_t r;
 
@@ -485,40 +488,4 @@ static void resample_ringbuf(uint16_t *dst)
 	rb.tail = (r.tail + format.chunksize) & (RBSIZE - 1);
 
 	resample(dst, buf);
-}
-
-/*
- */
-static void resample_table(uint16_t *dst)
-{
-	uint32_t count, slen = sizeof(stbl) / sizeof(stbl[0]);
-	uint32_t nframes = format.nframes;
-	static uint32_t idx;
-	frame_t *p, *buf;
-
-	p = buf = &framebuf[NFRAMES - format.nframes];
-
-	while(nframes) {
-		count = MIN(nframes, slen - idx);
-		nframes -= count;
-		while(count--) {
-			p->l = format.scale * stbl[idx];
-			p->r = - format.scale * stbl[idx];
-			idx++;
-			p++;
-		}
-		if (idx == slen) idx = 0;
-	}
-
-	resample(dst, buf);
-}
-
-extern uint16_t *pframe(page_t page);
-
-void pump(page_t page)
-{
-	uint16_t *dst = pframe(page);
-
-	format.fmt == SAMPLE_FORMAT_NONE ?
-		resample_table(dst) : resample_ringbuf(dst);
 }

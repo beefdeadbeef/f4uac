@@ -19,9 +19,6 @@ extern const float hc_sr[NUMTAPS_SR];\n\
 #define UPSAMPLE_SHIFT_DR\t\t%d\n\
 extern const float hc_dr[NUMTAPS_DR];\n\
 \n\
-#define SLEN\t\t\t\t%d\n\
-extern const float stbl[SLEN];\n\
-\n\
 ";
 
 BODY = "\
@@ -46,9 +43,6 @@ const float hc_dr[] = {\n\
 %s\
 };\n\
 \n\
-const float stbl[] = {\n\
-%s\
-};\n\
 ";
 %---------------------------------------------------------------
 function o = retap(u, v)
@@ -98,7 +92,6 @@ NUMTAPS_SR = 48;
 NUMTAPS_DR = 24;
 UPSAMPLE_SHIFT_SR = 3;
 UPSAMPLE_SHIFT_DR = 2;
-SLEN = 48;
 % ---------------------------------------
 % UPSAMPLE : NUMTAPS : PHASELEN : BACKLOG
 % ---------------------------------------
@@ -122,8 +115,7 @@ switch (substr(av{1}, -1))
     fprintf(fd, HEADER,
             VOLSTEPS,
             NUMTAPS_SR, UPSAMPLE_SHIFT_SR,
-            NUMTAPS_DR, UPSAMPLE_SHIFT_DR,
-            SLEN);
+            NUMTAPS_DR, UPSAMPLE_SHIFT_DR);
     fclose(fd);
   case "c"
     fd = fopen(av{1}, "w");
@@ -131,7 +123,6 @@ switch (substr(av{1}, -1))
             carray(VOL),
             sprintf(["\t%8d,\n"], fix(256 * db(VOL))),
             sfir(UPSAMPLE_SHIFT_SR,NUMTAPS_SR),
-            sfir(UPSAMPLE_SHIFT_DR,NUMTAPS_DR),
-            sample(SLEN, 48000));
+            sfir(UPSAMPLE_SHIFT_DR,NUMTAPS_DR));
     fclose(fd);
 endswitch

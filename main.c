@@ -81,20 +81,6 @@ void pll_setup(sample_rate rate)
 	clock = clk;
 }
 
-void exti0_isr(void)
-{
-	static uint32_t toggle;
-
-	exti_reset_request(EXTI0);
-	toggle = ~toggle;
-	if (toggle) {
-		e.state = STATE_FILL;
-		e.seen = false;
-	} else {
-		e.state = STATE_DRAIN;
-        }
-}
-
 static void poll()
 {
 	gpio_toggle(GPIOC, GPIO13);
@@ -133,10 +119,8 @@ int main() {
  * gpios
  */
 	gpio_set_mux(AFIO_GMUX_TIM1_A12_B12);	/* CH1-3:A[8:10] CHN1-3 B[13:15] */
-	gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
-		      GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);	/* KEY BTN */
 	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ,
-		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO1);		/* DEBUG */
+		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO0|GPIO1);	/* DEBUG */
 	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
 		      GPIO8|GPIO9|GPIO10|GPIO11|GPIO12);
@@ -151,13 +135,6 @@ int main() {
 		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);	/* PC13 LED */
 
 	gpio_set(GPIOB, GPIO12);
-/*
- * exti
- */
-	exti_select_source(EXTI0, GPIOA);
-	exti_set_trigger(EXTI0, EXTI_TRIGGER_FALLING);
-	exti_enable_request(EXTI0);
-	nvic_enable_irq(NVIC_EXTI0_IRQ);
 /*
  *
  */
