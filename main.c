@@ -12,31 +12,32 @@
 
 #include "common.h"
 
-const struct rcc_clock_scale rcc_hse_custom = {
-	.hse_xtpre = RCC_CFGR_PLLXTPRE_HSE_CLK_PREDIV,
-	.pll_mul = RCC_CFGR_PLLRANGE_HIGH | RCC_CFGR_PLLMUL_PLL_CLK_MUL48,
-	.pll_source = RCC_CFGR_PLLSRC_HSE_CLK,
-	.hpre = RCC_CFGR_HPRE_NODIV,
-	.ppre1 = RCC_CFGR_PPRE_DIV2,
-	.ppre2 = RCC_CFGR_PPRE_DIV2,
-	.ahb_frequency  = 192000000,
-	.apb1_frequency = 96000000,
-	.apb2_frequency = 96000000
+const struct rcc_clock_scale rcc_hse_custom[] = {
+	{ /* 61=>47656.25 */
+		.hse_xtpre = RCC_CFGR_PLLXTPRE_HSE_CLK_PREDIV,
+		.pll_mul = RCC_CFGR_PLLRANGE_HIGH | RCC_CFGR_PLLMUL_PLL_CLK_MUL61,
+		.pll_source = RCC_CFGR_PLLSRC_HSE_CLK,
+		.hpre = RCC_CFGR_HPRE_NODIV,
+		.ppre1 = RCC_CFGR_PPRE_DIV2,
+		.ppre2 = RCC_CFGR_PPRE_DIV2,
+		.ahb_frequency  = 244000000,
+		.apb1_frequency = 122000000,
+		.apb2_frequency = 122000000
+	},
+	{ /* 56=>43750 57=>44531.25 */
+		.hse_xtpre = RCC_CFGR_PLLXTPRE_HSE_CLK_PREDIV,
+		.pll_mul = RCC_CFGR_PLLRANGE_HIGH | RCC_CFGR_PLLMUL_PLL_CLK_MUL56,
+		.pll_source = RCC_CFGR_PLLSRC_HSE_CLK,
+		.hpre = RCC_CFGR_HPRE_NODIV,
+		.ppre1 = RCC_CFGR_PPRE_DIV2,
+		.ppre2 = RCC_CFGR_PPRE_DIV2,
+		.ahb_frequency  = 224000000,
+		.apb1_frequency = 112000000,
+		.apb2_frequency = 112000000
+	}
 };
 
-const struct rcc_clock_scale rcc_hse_custom_lo = {
-	.hse_xtpre = RCC_CFGR_PLLXTPRE_HSE_CLK_PREDIV,
-	.pll_mul = RCC_CFGR_PLLRANGE_HIGH | RCC_CFGR_PLLMUL_PLL_CLK_MUL45,
-	.pll_source = RCC_CFGR_PLLSRC_HSE_CLK,
-	.hpre = RCC_CFGR_HPRE_NODIV,
-	.ppre1 = RCC_CFGR_PPRE_DIV2,
-	.ppre2 = RCC_CFGR_PPRE_DIV2,
-	.ahb_frequency  = 180000000,
-	.apb1_frequency = 90000000,
-	.apb2_frequency = 90000000
-};
-
-static const struct rcc_clock_scale *clock = &rcc_hse_custom;
+static const struct rcc_clock_scale *clock = rcc_hse_custom;
 
 volatile uint32_t systicks;
 volatile ev_t e = {
@@ -63,11 +64,11 @@ void pll_setup(sample_rate rate)
 	switch (rate) {
 	case SAMPLE_RATE_44100:
 	case SAMPLE_RATE_88200:
-		clk = &rcc_hse_custom_lo;
+		clk = &rcc_hse_custom[1];
 		break;
 	case SAMPLE_RATE_48000:
 	case SAMPLE_RATE_96000:
-		clk = &rcc_hse_custom;
+		clk = rcc_hse_custom;
 	}
 
 	if (clk == clock) return;

@@ -69,6 +69,7 @@ void pwm()
 	nvic_enable_irq(__DMA_IRQ);
 
 	timer_set_period(TIM1, PWM_PERIOD);
+	timer_set_prescaler(TIM1, PWM_PRESCALER - 1);
 	timer_set_deadtime(TIM1, PWM_DEADTIME);
 	timer_set_enabled_off_state_in_idle_mode(TIM1);
 	timer_set_enabled_off_state_in_run_mode(TIM1);

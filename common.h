@@ -17,18 +17,19 @@
 /*
  * number of audio frames after upsampling, must be 2^(4+N)
  */
-#define NFRAMES	        (1 << 10)
+#define NFRAMES		(1 << 9)
 
 /*
  * pwm width
  */
-#define PWM_WIDTH 	8
+#define PWM_WIDTH 	7
 #define PWM_PERIOD	(1 << PWM_WIDTH)
+#define PWM_PRESCALER	5
 
 /*
  * noise shaper order
  */
-#define NS_ORDER	5
+#define NS_ORDER	4
 
 /*
  * circular buffer size, must be 2^N
