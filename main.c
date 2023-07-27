@@ -47,7 +47,7 @@ volatile ev_t e = {
 void pwm();
 void pwm_enable();
 void usbd(void);
-void pump(frame_type frame);
+void pump(page_t);
 
 void sys_tick_handler(void)
 {
@@ -190,14 +190,14 @@ sleep:
 	switch (e.state) {
 
 	case STATE_FILL:
-		pump(BUSY_FRAME);
-		pump(FREE_FRAME);
+		pump(BUSY_PAGE);
+		pump(FREE_PAGE);
 		e.state = STATE_RUNNING;
 		pwm_enable();
 		break;
 
 	case STATE_RUNNING:
-		pump(FREE_FRAME);
+		pump(FREE_PAGE);
 		break;
 
 	case STATE_DRAIN:

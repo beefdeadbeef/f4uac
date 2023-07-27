@@ -69,12 +69,12 @@
 #endif
 
 /*
- *
+ * double buffered dma halves
  */
 typedef enum {
-	BUSY_FRAME,
-	FREE_FRAME
-} frame_type;
+	BUSY_PAGE,
+	FREE_PAGE
+} page_t;
 
 /*
  * sync'd with usb descriptor alt settings order

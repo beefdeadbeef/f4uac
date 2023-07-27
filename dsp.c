@@ -441,11 +441,11 @@ static void resample_table(uint16_t *dst)
 	resample(dst, buf);
 }
 
-extern uint16_t *pframe(frame_type frame);
+extern uint16_t *pframe(page_t page);
 
-void pump(frame_type frame)
+void pump(page_t page)
 {
-	uint16_t *dst = pframe(frame);
+	uint16_t *dst = pframe(page);
 
 	format.fmt == SAMPLE_FORMAT_NONE ?
 		resample_table(dst) : resample_ringbuf(dst);

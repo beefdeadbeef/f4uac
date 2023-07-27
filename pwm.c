@@ -13,7 +13,7 @@
 #define PWM_DEADTIME 4
 #define DMABUFSZ (NCHANNELS * NFRAMES)
 
-static uint16_t frames[2 * DMABUFSZ] __attribute__((aligned(4)));
+static uint16_t dmabuf[2 * DMABUFSZ] __attribute__((aligned(4)));
 
 #define __DMA DMA1
 #define __DMA_STREAM DMA_CHANNEL1
@@ -26,10 +26,10 @@ static uint16_t frames[2 * DMABUFSZ] __attribute__((aligned(4)));
 static volatile uint32_t dma_target;
 #define dma_get_target(x, y) (dma_target)
 
-uint16_t *pframe(frame_type frame)
+uint16_t *pframe(page_t page)
 {
-	return (frame == dma_get_target(__DMA, __DMA_STREAM)) ?
-		frames: &frames[DMABUFSZ];
+	return (page == dma_get_target(__DMA, __DMA_STREAM)) ?
+		dmabuf: &dmabuf[DMABUFSZ];
 }
 
 static void timer_tim1_setup_ocs(enum tim_oc_id oc, enum tim_oc_id ocn)
@@ -62,7 +62,7 @@ void pwm()
 	dma_set_read_from_memory(__DMA, __DMA_STREAM);
 	dma_set_number_of_data(__DMA, __DMA_STREAM, 2 * DMABUFSZ);
 	dma_set_peripheral_address(__DMA, __DMA_STREAM, (uint32_t)&TIM_DMAR(TIM1));
-	dma_set_memory_address(__DMA, __DMA_STREAM, (uint32_t)frames);
+	dma_set_memory_address(__DMA, __DMA_STREAM, (uint32_t)dmabuf);
 	dma_enable_half_transfer_interrupt(__DMA, __DMA_STREAM);
 	dma_enable_transfer_complete_interrupt(__DMA, __DMA_STREAM);
 	dma_enable_channel(__DMA, __DMA_STREAM);
