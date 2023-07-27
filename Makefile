@@ -2,7 +2,7 @@
 OPENCM3_DIR	= libopencm3
 DEVICE		= at32f403acgu
 BINARY		= f4uac
-OBJS		= main.o pwm.o usbd.o dsp.o tables.o trace.o trace_stdio.o
+OBJS		= main.o disp.o pwm.o usbd.o dsp.o tables.o trace.o trace_stdio.o
 VPATH		= $(OPENCM3_DIR)/tests/shared
 
 CFLAGS		+= -pipe -g -Os -flto
@@ -33,6 +33,8 @@ lib:
 		$(Q)$(MAKE) -C $(OPENCM3_DIR) lib TARGETS=at32/f40x CFLAGS=-flto AR=$(CC)-ar
 
 dsp.o usbd.o:	tables.h
+
+disp.o:		icons.h
 
 $(TABLES):	tables.m
 		@printf "  OCT     $@\n"

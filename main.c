@@ -51,15 +51,16 @@ volatile cs_t cstate = {
 	.attn = 6
 };
 
+void disp();
+void pump(page_t);
 void pwm();
 void pwm_enable();
-void usbd(void);
-void pump(page_t);
 void uac_notify();
+void usbd(void);
 
 void sys_tick_handler(void)
 {
-        systicks++;
+	systicks++;
 }
 
 void pll_setup(sample_rate rate)
@@ -132,10 +133,14 @@ int main() {
 	rcc_periph_clock_enable(RCC_AFIO);
 	rcc_periph_clock_enable(RCC_CRS);
 	rcc_periph_clock_enable(RCC_DMA1);
+	rcc_periph_clock_enable(RCC_DMA2);
 	rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOC);
+	rcc_periph_clock_enable(RCC_SPI1);
 	rcc_periph_clock_enable(RCC_TIM1);
+	rcc_periph_clock_enable(RCC_TIM9);
+	rcc_periph_clock_enable(RCC_TIM10);
 	rcc_set_hsi_div(RCC_CFGR3_HSIDIV_NODIV);
 	rcc_set_hsi_sclk(RCC_CFGR5_HSI_SCLK_HSIDIV);
 	rcc_set_usb_clock_source(RCC_HSI);
@@ -155,24 +160,34 @@ int main() {
  */
 	gpio_set_mux(AFIO_GMUX_SWJ_NO_JTAG);
 	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ,
-		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO0|GPIO1);	/* DEBUG */
-	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
-		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO15);	/* PWMEN1 */
+		      GPIO_CNF_OUTPUT_PUSHPULL,
+		      GPIO0|GPIO1|			/* DEBUG */
+		      GPIO4|				/* DISP D/C */
+		      GPIO6|				/* DISP RST */
+		      GPIO15);				/* PWMEN1 */
 	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
-		      GPIO8|GPIO9|GPIO10|GPIO11|GPIO12);
+		      GPIO2|GPIO3|			/* TIM9 CH[1:2] */
+		      GPIO5|GPIO7|			/* SPI1 */
+		      GPIO8|GPIO9|GPIO10|		/* TIM1 CH[1:3] */
+		      GPIO11|GPIO12);			/* USBFS */
 
+	gpio_set_mode(GPIOB, GPIO_MODE_INPUT,
+		      GPIO_CNF_INPUT_FLOAT,
+		      GPIO9);				/* JSENSE */
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL,
+		      GPIO12);				/* PWMEN */
 	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
-		      GPIO13|GPIO14|GPIO15);
-	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ,
-		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);	/* PWMEN */
+		      GPIO13|GPIO14|GPIO15);		/* TIM1 CH[1:3]N */
 
 	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ,
-		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);	/* PC13 LED */
+		      GPIO_CNF_OUTPUT_PUSHPULL,
+		      GPIO13);				/* PC13 LED */
 
 	cstate.boost = cstate.speaker = (gpio_get(GPIOB, GPIO9) == 0);
-	gpio_set(GPIOA, GPIO15);
+	gpio_set(GPIOA, GPIO0|GPIO1|GPIO2|GPIO3|GPIO4|GPIO6|GPIO15);
 	gpio_set(GPIOB, GPIO12);
 /*
  * exti
@@ -184,6 +199,7 @@ int main() {
 /*
  *
  */
+	disp();
 	pwm();
 	usbd();
 
