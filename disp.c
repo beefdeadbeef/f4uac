@@ -110,11 +110,35 @@ void tim1_up_isr()
 		}
 		break;
 	}
-	case 5 ... 6:
+	case 4:
 	{
-		uint8_t c = page == 5 ? 0xe0 : 0x07;
+		uint8_t c = 0xfe;
+		unsigned u = 4 * DISP_PAGE_SIZE * cstate.rms[1];
+		for (unsigned i=0; i<MIN(DISP_PAGE_SIZE, u); i+=2)
+			dispbuf[i] = c;
+		break;
+	}
+	case 5:
+	{
+		uint8_t c = 0x60;
 		unsigned u = DISP_PAGE_SIZE - 2 * cstate.attn;
 		for (unsigned i=0; i<u; i+=2)
+			dispbuf[i] = c;
+		break;
+	}
+	case 6:
+	{
+		uint8_t c = 0x06;
+		unsigned u = DISP_PAGE_SIZE - 2 * cstate.attn;
+		for (unsigned i=0; i<u; i+=2)
+			dispbuf[i] = c;
+		break;
+	}
+	case 7:
+	{
+		uint8_t c = 0x7f;
+		unsigned u = 4 * DISP_PAGE_SIZE * cstate.rms[0];
+		for (unsigned i=0; i<MIN(DISP_PAGE_SIZE, u); i+=2)
 			dispbuf[i] = c;
 		break;
 	}

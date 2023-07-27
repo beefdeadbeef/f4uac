@@ -134,6 +134,7 @@ enum { muted, spmuted, boost, usb, sw_num };
 typedef struct {
 	bool on[sw_num];
 	uint16_t attn;
+	float rms[2];
 } cs_t;
 
 /*

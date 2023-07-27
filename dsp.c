@@ -90,6 +90,7 @@ void rb_setup(sample_fmt fmt, bool dr)
 	format.framesize = framesize(fmt);
 	format.chunksize = format.framesize * format.nframes;
 	format.taps = dr ? hc_dr : hc_sr;
+	cstate.rms[0] = cstate.rms[1] = 0;
 	reset_zstate();
 	set_scale();
 }
@@ -129,6 +130,27 @@ uint16_t rb_put(void *src, uint16_t len)
 
 #pragma GCC push_options
 #pragma GCC optimize 3
+
+#define EWMA (1.0f/128)
+static void ewma(float in, float *result)
+{
+	*result = EWMA * in + (1.0f - EWMA) * *result;
+}
+
+static void rms(frame_t *frame)
+{
+	unsigned nframes = format.nframes;
+	float suml, sumr;
+
+	suml = sumr = 0.0f;
+	while(nframes--) {
+		suml += frame->l * frame->l;
+		sumr += frame->r * frame->r;
+		frame++;
+	}
+	ewma(__vsqrt(suml / format.nframes), (float *)&cstate.rms[0]);
+	ewma(__vsqrt(sumr / format.nframes), (float *)&cstate.rms[1]);
+}
 
 /*
  * TF2 biquads
@@ -313,6 +335,7 @@ static void sigmadelta(uint16_t *dst, const frame_t *src)
 
 static void resample(uint16_t *dst, frame_t *src)
 {
+	rms(src);
 	if (cstate.on[boost]) filter(src);
 	upsample(framebuf, src);
 	sigmadelta(dst, framebuf);

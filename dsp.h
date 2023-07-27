@@ -17,4 +17,13 @@
                 out;                                                    \
         })
 
+#define __vsqrt(in)				\
+	({					\
+		float out;                      \
+		__asm__ ("vsqrt.f32 %0, %1"     \
+			 : "=t" (out)           \
+			 : "t"  (in));          \
+		out;                            \
+	})
+
 #endif
