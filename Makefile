@@ -14,7 +14,7 @@ include		$(OPENCM3_DIR)/mk/gcc-config.mk
 CPPFLAGS	+= -MMD
 CPPFLAGS	+= -I$(OPENCM3_DIR)/tests/shared
 
-LDFLAGS		+= --static -nostartfiles -Wl,--gc-sections
+LDFLAGS		+= --static -nostartfiles -Wl,--gc-sections -Wl,--no-warn-rwx-segments
 LDLIBS		+= -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 
 ifneq ($(V),1)
