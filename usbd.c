@@ -693,11 +693,11 @@ static enum usbd_request_return_codes control_cs_cb(
 	case (UAC_FU_MAIN_ID <<8 | UAC_FU_MUTE):
 		switch(req->bRequest) {
 		case UAC_SET_CUR:
-			cstate.muted = **buf;
+			cstate.on[muted] = **buf;
 			set_scale();
 			return USBD_REQ_HANDLED;
 		case UAC_GET_CUR:
-			**buf = cstate.muted;
+			**buf = cstate.on[muted];
 			return USBD_REQ_HANDLED;
 		default:
 			return USBD_REQ_NOTSUPP;
@@ -733,11 +733,11 @@ static enum usbd_request_return_codes control_cs_cb(
 	case (UAC_FU_SPEAKER_ID << 8 | UAC_FU_MUTE):
 		switch (req->bRequest) {
 		case UAC_SET_CUR:
-			cstate.speaker = **buf == 0;
+			cstate.on[spmuted] = **buf;
 			speaker();
 			return USBD_REQ_HANDLED;
 		case UAC_GET_CUR:
-			**buf = !cstate.speaker;
+			**buf = cstate.on[spmuted];
 			return USBD_REQ_HANDLED;
 		default:
 			return USBD_REQ_NOTSUPP;
@@ -745,11 +745,11 @@ static enum usbd_request_return_codes control_cs_cb(
 	case (UAC_FU_SPEAKER_ID << 8 | UAC_FU_BASS_BOOST):
 		switch (req->bRequest) {
 		case UAC_SET_CUR:
-			cstate.boost = **buf;
+			cstate.on[boost] = **buf;
 			speaker();
 			return USBD_REQ_HANDLED;
 		case UAC_GET_CUR:
-			**buf = cstate.boost;
+			**buf = cstate.on[boost];
 			return USBD_REQ_HANDLED;
 		default:
 			break;
@@ -842,7 +842,7 @@ static void usbd_set_config(usbd_device *usbd_dev, uint16_t wValue)
 		USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
 		control_cs_ep_cb);
 
-	cstate.src = CS_SRC_USB;
+	cstate.on[usb] = true;
 }
 
 void usbd(void)

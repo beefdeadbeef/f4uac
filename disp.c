@@ -28,13 +28,22 @@ extern volatile cs_t cstate;
 #define REFRESH_DIV_PRE	1024
 #define REFRESH_DIV	(REFRESH_DIV_PRE * REFRESH_HZ * DISPNUM * DISP_PAGE_NUM)
 
+static const icon iconrow[] = {
+	[muted]		= icon_volume_mute,
+	[spmuted]	= icon_headphones_box,
+	[boost]		= icon_subwoofer,
+	[usb]		= icon_usb
+};
+
+#define NICONS (sizeof(iconrow)/sizeof(iconrow[0]))
+
 static const uint8_t sh1106_init[] = {
 	0xae,                   /* set display off */
 	0xd5, 0x80,             /* set osc frequency */
 	0xa8, 0x3f,             /* set MUX ratio */
 	0xd3, 0,                /* set display offset */
 	0x40| 0,                /* set display start line */
-	0xa0| 1,                /* set segment remap */
+	0xa0| 0,                /* set segment remap (1) */
 	0xc8,                   /* set reversed COM output scan direction */
 	0xda, 0x12,             /* set COM pins hw configuration */
 	0xd9, 0xf1,             /* set pre-charge period */
@@ -80,8 +89,38 @@ void dma2_channel1_isr()
 
 void tim1_up_isr()
 {
+	unsigned page = timer_get_counter(TIM9);
 	timer_clear_flag(TIM10, TIM_SR_UIF);
-	disp_select_page(timer_get_counter(TIM9));
+	disp_select_page(page);
+	bzero(dispbuf, sizeof(dispbuf));
+	switch (page) {
+	case 0 ... 3:
+	{
+		uint8_t * dst = dispbuf;
+		for (unsigned i=0; i<NICONS; i++) {
+			const char *src = icons[iconrow[i]].p + page;
+			if (cstate.on[i]) {
+				for (unsigned j=0; j<(ICONLEN/4); j++) {
+					*dst++ = *src;
+					src += 4;
+				}
+			} else {
+				dst += ICONLEN/4;
+			}
+		}
+		break;
+	}
+	case 5 ... 6:
+	{
+		uint8_t c = page == 5 ? 0xe0 : 0x07;
+		unsigned u = DISP_PAGE_SIZE - 2 * cstate.attn;
+		for (unsigned i=0; i<u; i+=2)
+			dispbuf[i] = c;
+		break;
+	}
+	default:
+		break;
+	}
 	dma_set_memory_address(DMA2, DMA_CHANNEL1, (uint32_t)dispbuf);
 	dma_set_number_of_data(DMA2, DMA_CHANNEL1, sizeof(dispbuf));
 	dma_enable_channel(DMA2, DMA_CHANNEL1);

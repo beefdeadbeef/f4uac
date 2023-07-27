@@ -47,7 +47,8 @@ volatile ev_t e = {
 };
 
 volatile cs_t cstate = {
-	.muted = true,
+	.on[muted] = true,
+	.on[spmuted] = true,
 	.attn = 6
 };
 
@@ -91,9 +92,9 @@ void pll_setup(sample_rate rate)
 
 void speaker()
 {
-	if (e.state == STATE_RUNNING && cstate.speaker) {
+	if (e.state == STATE_RUNNING && !cstate.on[spmuted]) {
 		gpio_clear(GPIOB, GPIO12);
-		if (cstate.boost)
+		if (cstate.on[boost])
 			gpio_clear(GPIOA, GPIO15);
 		else
 			gpio_set(GPIOA, GPIO15);
@@ -108,10 +109,10 @@ void exti9_5_isr(void)
 	bool sp;
 	exti_reset_request(EXTI9);
 	/* jsense active high */
-	sp = gpio_get(GPIOB, GPIO9) == 0;
-	if (cstate.speaker != sp) {
-		cstate.speaker = sp;
-		cstate.boost = sp;
+	sp = gpio_get(GPIOB, GPIO9) != 0;
+	if (cstate.on[spmuted] != sp) {
+		cstate.on[spmuted] = sp;
+		cstate.on[boost] = !sp;
 		uac_notify();
 	}
 	speaker();
@@ -186,7 +187,8 @@ int main() {
 		      GPIO_CNF_OUTPUT_PUSHPULL,
 		      GPIO13);				/* PC13 LED */
 
-	cstate.boost = cstate.speaker = (gpio_get(GPIOB, GPIO9) == 0);
+	cstate.on[spmuted] = (gpio_get(GPIOB, GPIO9) != 0);
+	cstate.on[boost] = !cstate.on[spmuted];
 	gpio_set(GPIOA, GPIO0|GPIO1|GPIO2|GPIO3|GPIO4|GPIO6|GPIO15);
 	gpio_set(GPIOB, GPIO12);
 /*

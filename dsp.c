@@ -68,7 +68,7 @@ static void reset_zstate();
 
 void set_scale()
 {
-	uint16_t idx = cstate.muted ? VOLSTEPS - 1 : cstate.attn;
+	uint16_t idx = cstate.on[muted] ? VOLSTEPS - 1 : cstate.attn;
 	format.scale = scale[idx]  / (const float[]) {
 		[SAMPLE_FORMAT_NONE] = 1<<0,
 		[SAMPLE_FORMAT_S16] = 1<<15,
@@ -313,7 +313,7 @@ static void sigmadelta(uint16_t *dst, const frame_t *src)
 
 static void resample(uint16_t *dst, frame_t *src)
 {
-	if (cstate.boost) filter(src);
+	if (cstate.on[boost]) filter(src);
 	upsample(framebuf, src);
 	sigmadelta(dst, framebuf);
 }

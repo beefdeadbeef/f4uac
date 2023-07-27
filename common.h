@@ -130,11 +130,9 @@ typedef struct {
 /*
  *
  */
+enum { muted, spmuted, boost, usb, sw_num };
 typedef struct {
-	enum { CS_SRC_NONE, CS_SRC_USB } src;
-	bool muted;
-	bool speaker;
-	bool boost;
+	bool on[sw_num];
 	uint16_t attn;
 } cs_t;
 
