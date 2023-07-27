@@ -19,10 +19,10 @@ const int16_t db[VOLSTEPS] = {\n\
 ";
 
 FIR = "\
-#define UPSAMPLE_SHIFT_%d\t\t%d\n\
-#define NUMTAPS%d\t\t\t%d\n\
+#define UPSAMPLE_SHIFT_%s\t\t%d\n\
+#define NUMTAPS_%s\t\t\t%d\n\
 \n\
-const float hc%d[] = {\n\
+const float hc_%s[] = {\n\
 %s\
 };\n\
 ";
@@ -55,13 +55,14 @@ function s = carray(v)
   s = sprintf(["\t%.8ff,\n"], v);
 endfunction
 
-function s = sfir(fmt, e, n)
+function s = sfir(fmt, suffix, e, n)
 
   f = 2^e;
   s = sprintf(fmt,
-              f, e,
-              f, n,
-              f, carray(retap(f, f * fir1(n-1, 1/f))));
+              suffix, e,
+              suffix, n,
+              tolower(suffix),
+              carray(retap(f, f * fir1(n-1, 1/f))));
 
 endfunction
 
@@ -90,6 +91,6 @@ fd = fopen(av{1}, "w");
 
 fprintf(fd, HEADER, VOLSTEPS, carray(VOL),
         sprintf(["\t%12d,\n"], fix(256 * db(VOL))));
-fprintf(fd, "%s\n", sfir(FIR, 4, 96));
-fprintf(fd, "%s\n", sfir(FIR, 3, 48));
+fprintf(fd, "%s\n", sfir(FIR, "SR", 4, 96));
+fprintf(fd, "%s\n", sfir(FIR, "DR", 3, 48));
 fprintf(fd, "%s\n", sample(SAMPLE, 48, 48000));

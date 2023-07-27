@@ -85,11 +85,11 @@ void rb_setup(sample_fmt fmt, bool dr)
 	format.doublerate = dr;
 	format.fmt = fmt;
 	format.nframes = dr ?
-		NFRAMES >> UPSAMPLE_SHIFT_8 :
-		NFRAMES >> UPSAMPLE_SHIFT_16;
+		NFRAMES >> UPSAMPLE_SHIFT_DR :
+		NFRAMES >> UPSAMPLE_SHIFT_SR;
 	format.framesize = framesize(fmt);
 	format.chunksize = format.framesize * format.nframes;
-	format.taps = dr ? hc8 : hc16;
+	format.taps = dr ? hc_dr : hc_sr;
 	reset_zstate();
 	set_scale();
 }
@@ -184,24 +184,24 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
  * FIR filters
  */
 #define UPSAMPLE(x) (1U << UPSAMPLE_SHIFT_##x)
-#define PHASELEN(x) (NUMTAPS##x >> UPSAMPLE_SHIFT_##x)
+#define PHASELEN(x) (NUMTAPS_##x >> UPSAMPLE_SHIFT_##x)
 #define BACKLOG(x)  (PHASELEN(x) - 1)
 #define NSAMPLES(x) (NFRAMES >> UPSAMPLE_SHIFT_##x)
 
-#if (PHASELEN(8) != PHASELEN(16)) || (BACKLOG(8) != BACKLOG(16))
+#if (PHASELEN(DR) != PHASELEN(SR)) || (BACKLOG(DR) != BACKLOG(SR))
 #error PHASELEN and BACKLOG must match
 #endif
 
-#if (BACKLOG(16) + NSAMPLES(16)) > (BACKLOG(8) + NSAMPLES(8))
-#define STATELEN (BACKLOG(16) + NSAMPLES(16))
+#if (BACKLOG(SR) + NSAMPLES(SR)) > (BACKLOG(DR) + NSAMPLES(DR))
+#define STATELEN (BACKLOG(SR) + NSAMPLES(SR))
 #else
-#define STATELEN (BACKLOG(8) + NSAMPLES(8))
+#define STATELEN (BACKLOG(DR) + NSAMPLES(DR))
 #endif
 
 static void upsample(frame_t *dst, const frame_t *src)
 {
 	static frame_t state[STATELEN];
-	frame_t *samples = &state[BACKLOG(8)];
+	frame_t *samples = &state[BACKLOG(DR)];
 	frame_t *backlog = state;
 	unsigned i, nframes = format.nframes;
 
@@ -213,12 +213,12 @@ static void upsample(frame_t *dst, const frame_t *src)
 	flop:
 
 #pragma GCC unroll 8
-		for (i = UPSAMPLE(8); i; i--) {
+		for (i = UPSAMPLE(DR); i; i--) {
 		    frame_t *sample = backlog;
 		    frame_t sum;
 
 		    sum.l = sum.r = 0.0f;
-		    for (int k = PHASELEN(8); k; k--, tap++) {
+		    for (int k = PHASELEN(DR); k; k--, tap++) {
 			sum.l += sample->l * *tap;
 			sum.r += sample->r * *tap;
 			sample++;
@@ -234,7 +234,7 @@ static void upsample(frame_t *dst, const frame_t *src)
 
 	samples = state;
 
-	for (i = BACKLOG(8); i; i--)
+	for (i = BACKLOG(DR); i; i--)
 		*samples++ = *backlog++;
 
 }
