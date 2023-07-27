@@ -13,6 +13,7 @@
 #include <string.h>
 #include "common.h"
 #include "icons.h"
+#include "tables.h"
 
 extern volatile ev_t e;
 extern volatile cs_t cstate;
@@ -21,7 +22,8 @@ extern volatile cs_t cstate;
 #define DISP_Y		64
 #define DISP_PAGE_NUM	(DISP_Y / 8)
 #define DISP_PAGE_SIZE	(DISP_X)
-#define ICONLEN		128	/* 32x32 px */
+#define ICONSZ		24	/* 24x24 px */
+#define LICONSZ		40	/* 40x40 px */
 
 #define DISPNUM		2
 #define REFRESH_HZ	30
@@ -32,6 +34,7 @@ static const icon iconrow[] = {
 	[muted]		= icon_volume_mute,
 	[spmuted]	= icon_headphones_box,
 	[boost]		= icon_subwoofer,
+	[sine]		= icon_sine_wave,
 	[usb]		= icon_usb
 };
 
@@ -80,6 +83,68 @@ static void disp_select_page(uint8_t i)
 	gpio_set(GPIOA, GPIO4);				/* D/C */
 }
 
+static uint16_t disp_f_to_idx(float in)
+{
+	return MIN(DISP_PAGE_SIZE * in, DISP_PAGE_SIZE - 1);
+}
+
+static void disp_draw_bar(uint8_t c, uint16_t max)
+{
+	for (unsigned i=0; i<=max; i+=2) dispbuf[i] = c;
+}
+
+static void disp_fill_page(unsigned page)
+{
+	disp_select_page(page);
+
+	bzero(dispbuf, sizeof(dispbuf));
+
+	switch (page) {
+	case 0 ... 2:
+	{
+		uint8_t * dst = dispbuf;
+		for (unsigned i=0; i<NICONS; i++) {
+			const char *src = icons[iconrow[i]].p + page;
+			if (cstate.on[i]) {
+				for (unsigned j=0; j<ICONSZ; j++) {
+					*dst++ = *src;
+					src += (ICONSZ / 8);
+				}
+			} else {
+				dst += ICONSZ;
+			}
+			dst += 2;	/* spacing */
+		}
+		break;
+	}
+	case 3 ... 7:
+	{
+		uint8_t *dst = dispbuf + (DISP_PAGE_SIZE - LICONSZ) / 2;
+		const char *src = (e.state == STATE_RUNNING ?
+				   icons[icon_play].p :
+				   icons[icon_pause].p) + page - 3;
+		for (unsigned i=0; i<LICONSZ; i++, dst++) {
+			*dst = *src;
+			src += (LICONSZ / 8);
+		}
+		break;
+	}
+	case 9 ... 10:
+		disp_draw_bar(0xff, disp_f_to_idx(4 * cstate.rms[1]));
+		break;
+	case 11:
+		disp_draw_bar(0x60, disp_f_to_idx(scale[cstate.attn]));
+		break;
+	case 12:
+		disp_draw_bar(0x06, disp_f_to_idx(scale[cstate.attn]));
+		break;
+	case 13 ... 14:
+		disp_draw_bar(0xff, disp_f_to_idx(4 * cstate.rms[0]));
+	default:
+		break;
+	}
+}
+
 void dma2_channel1_isr()
 {
 	dma_clear_interrupt_flags(DMA2, DMA_CHANNEL1, DMA_TCIF);
@@ -89,62 +154,8 @@ void dma2_channel1_isr()
 
 void tim1_up_isr()
 {
-	unsigned page = timer_get_counter(TIM9);
 	timer_clear_flag(TIM10, TIM_SR_UIF);
-	disp_select_page(page);
-	bzero(dispbuf, sizeof(dispbuf));
-	switch (page) {
-	case 0 ... 3:
-	{
-		uint8_t * dst = dispbuf;
-		for (unsigned i=0; i<NICONS; i++) {
-			const char *src = icons[iconrow[i]].p + page;
-			if (cstate.on[i]) {
-				for (unsigned j=0; j<(ICONLEN/4); j++) {
-					*dst++ = *src;
-					src += 4;
-				}
-			} else {
-				dst += ICONLEN/4;
-			}
-		}
-		break;
-	}
-	case 4:
-	{
-		uint8_t c = 0xfe;
-		unsigned u = 4 * DISP_PAGE_SIZE * cstate.rms[1];
-		for (unsigned i=0; i<MIN(DISP_PAGE_SIZE, u); i+=2)
-			dispbuf[i] = c;
-		break;
-	}
-	case 5:
-	{
-		uint8_t c = 0x60;
-		unsigned u = DISP_PAGE_SIZE - 2 * cstate.attn;
-		for (unsigned i=0; i<u; i+=2)
-			dispbuf[i] = c;
-		break;
-	}
-	case 6:
-	{
-		uint8_t c = 0x06;
-		unsigned u = DISP_PAGE_SIZE - 2 * cstate.attn;
-		for (unsigned i=0; i<u; i+=2)
-			dispbuf[i] = c;
-		break;
-	}
-	case 7:
-	{
-		uint8_t c = 0x7f;
-		unsigned u = 4 * DISP_PAGE_SIZE * cstate.rms[0];
-		for (unsigned i=0; i<MIN(DISP_PAGE_SIZE, u); i+=2)
-			dispbuf[i] = c;
-		break;
-	}
-	default:
-		break;
-	}
+	disp_fill_page(timer_get_counter(TIM9));
 	dma_set_memory_address(DMA2, DMA_CHANNEL1, (uint32_t)dispbuf);
 	dma_set_number_of_data(DMA2, DMA_CHANNEL1, sizeof(dispbuf));
 	dma_enable_channel(DMA2, DMA_CHANNEL1);
