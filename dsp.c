@@ -113,7 +113,7 @@ uint16_t rb_put(void *src, uint16_t len)
 	count = rb_space_to_end(r);
 
 	if (count) {
-		count = (count < len) ? count : len;
+		count = MIN(count, len);
 		memcpy((void *)&ringbuf[r.head], src, count);
 		len -= count;
 		src += count;
@@ -242,15 +242,15 @@ static void upsample(float *dst, const float *src)
 
 }
 
-#define QF (1U << (PWM_SHIFT - 1))
-#if (ORDER == 5)
+#define QF (1U << (PWM_WIDTH - 1))
+#if (NS_ORDER == 5)
 const float abg[] = { .0028f, .0344f, .1852f, .5904f, 1.1120f, -.002f, -.0007f };
-#elif (ORDER == 4)
+#elif (NS_ORDER == 4)
 const float abg[] = { .0157f, .1359f, .514f, .3609f, -.0018, -.003f };
 #else
 const float abg[] = { .0751f, .0421f, .9811, -.0014f };
 #endif
-static float zstate[NCHANNELS * (ORDER + 1)];
+static float zstate[NCHANNELS * (NS_ORDER + 1)];
 
 static void reset_zstate()
 {
@@ -260,16 +260,16 @@ static void reset_zstate()
 static uint16_t ns(const float *src, float *z)
 {
 	const float *x = abg;
-	const float *g = &abg[ORDER];
+	const float *g = &abg[NS_ORDER];
 	float sum;
 	int8_t p;
 
 	sum = *src - z[0];
-#if (ORDER == 5)
+#if (NS_ORDER == 5)
 	z[5] += *x++ * sum;
 	z[4] += z[5] + *x++ * sum + g[1] * z[3];
 	z[3] += z[4] + *x++ * sum;
-#elif (ORDER == 4)
+#elif (NS_ORDER == 4)
 	z[4] += *x++ * sum + g[1] * z[3];
 	z[3] += z[4] + *x++ * sum;
 #else
@@ -278,7 +278,7 @@ static uint16_t ns(const float *src, float *z)
 	z[2] += z[3] + *x++ * sum + g[0] * z[1];
 	z[1] += z[2] + *x * sum;
 	sum += z[1] + z[0];
-	z[0] = (p = __ssat((int32_t)(sum * QF), PWM_SHIFT)) / (float)QF;
+	z[0] = (p = __ssat((int32_t)(sum * QF), PWM_WIDTH)) / (float)QF;
 
 	return QF + p;
 }
@@ -288,7 +288,7 @@ static void sigmadelta(uint16_t *dst, const float *src)
 #pragma GCC unroll 4
 	for (uint16_t nframes = NFRAMES; nframes; nframes--) {
 		*dst++ = ns(src++, zstate);
-		*dst++ = ns(src++, &zstate[ORDER + 1]);
+		*dst++ = ns(src++, &zstate[NS_ORDER + 1]);
 	}
 }
 
@@ -395,7 +395,7 @@ static void resample_ringbuf(uint16_t *dst)
 	count = rb_count_to_end(r);
 
 	if (count) {
-		count = (count < len) ? count : len;
+		count = MIN(count, len);
 		if ((tail = count % framelen)) {
 			*(uint32_t *)&ringbuf[RBSIZE] = *(uint32_t *)ringbuf;
 			tail = framelen - tail;
@@ -416,8 +416,6 @@ static void resample_ringbuf(uint16_t *dst)
 
 /*
  */
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-
 static void resample_table(uint16_t *dst)
 {
 	uint32_t count, slen = sizeof(stbl) / sizeof(stbl[0]);

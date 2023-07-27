@@ -22,19 +22,18 @@
 /*
  * number of audio frames after upsampling, must be 2^(4+N)
  */
-#define NFRAMES_SHIFT   10
-#define NFRAMES	        (1 << NFRAMES_SHIFT)
+#define NFRAMES	        (1 << 10)
 
 /*
  * pwm width
  */
-#define PWM_SHIFT 	8
-#define PWM_PERIOD 	(1 << PWM_SHIFT)
+#define PWM_WIDTH 	8
+#define PWM_PERIOD	(1 << PWM_WIDTH)
 
 /*
  * noise shaper order
  */
-#define ORDER		5
+#define NS_ORDER	5
 
 /*
  * circular buffer size, must be 2^N
@@ -46,26 +45,26 @@
  * async usb audio feedback
  * frames # per 1ms in Q10.14 format
  */
-#define FEEDBACK_SHIFT 14
-#define FEEDBACK (48 << FEEDBACK_SHIFT)
-#define FEEDBACK_MIN (42 << FEEDBACK_SHIFT)
+#define FEEDBACK_SHIFT	14
+#define FEEDBACK	(48 << FEEDBACK_SHIFT)
+#define FEEDBACK_MIN	(42 << FEEDBACK_SHIFT)
 
 /*
  * how often we'll send it
  */
-#define SOF_RATE 4
+#define SOF_SHIFT	4
 
 /*
  * how feedback value relates to circular buffer position:
- * delta in 0 .. (RBSIZE << SOF_RATE) to +- 1/8 FEEDBACK =>
- * +- (6 << FEEDBACK_SHIFT) / (1 << (RINGBUF_SHIFT + SOF_RATE) =>
- * 0 .. 3 * (1 << (FEEDBACK_SHIFT + 2 - RINGBUF_SHIFT - SOF_RATE)) =>
- * > (1 << (FEEDBACK_SHIFT + 3 - SOF_RATE - RINGBUF_SHIFT))
+ * delta in 0 .. (RBSIZE << SOF_SHIFT) to +- 1/8 FEEDBACK =>
+ * +- (6 << FEEDBACK_SHIFT) / (1 << (RINGBUF_SHIFT + SOF_SHIFT) =>
+ * 0 .. 3 * (1 << (FEEDBACK_SHIFT + 2 - RINGBUF_SHIFT - SOF_SHIFT)) =>
+ * > (1 << (FEEDBACK_SHIFT + 3 - SOF_SHIFT - RINGBUF_SHIFT))
  */
-#if (FEEDBACK_SHIFT + 3 - SOF_RATE) > RINGBUF_SHIFT
-#define DELTA_SHIFT(x) ((x) << (FEEDBACK_SHIFT + 3 - SOF_RATE - RINGBUF_SHIFT))
+#if (FEEDBACK_SHIFT + 3 - SOF_SHIFT) > RINGBUF_SHIFT
+#define DELTA_SHIFT(x) ((x) << (FEEDBACK_SHIFT + 3 - SOF_SHIFT - RINGBUF_SHIFT))
 #else
-#define DELTA_SHIFT(x) ((x) >> (RINGBUF_SHIFT + SOF_RATE - 3 - FEEDBACK_SHIFT))
+#define DELTA_SHIFT(x) ((x) >> (RINGBUF_SHIFT + SOF_SHIFT - 3 - FEEDBACK_SHIFT))
 #endif
 
 /*
@@ -134,3 +133,8 @@ typedef enum  {
 	UAC_GET_MAX,
 	UAC_GET_RES
 } uac_rq;
+
+/*
+ *
+ */
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
