@@ -76,9 +76,10 @@ void pwm()
 	timer_disable_break(TIM1);
 	timer_tim1_setup_ocs(TIM_OC1, TIM_OC1N);
 	timer_tim1_setup_ocs(TIM_OC2, TIM_OC2N);
+	timer_tim1_setup_ocs(TIM_OC3, TIM_OC3N);
 	timer_enable_preload(TIM1);
-	/* to:CCR1/2: len: 2  off: 0x34>>4=0xd */
-	TIM_DCR(TIM1) |= 1<<8 | 0xd;
+	/* to:CCR1/2/3: len: 3  off: 0x34>>4=0xd */
+	TIM_DCR(TIM1) |= 2<<8 | 0xd;
 	timer_generate_event(TIM1, TIM_EGR_UG);
 	timer_enable_irq(TIM1, TIM_DIER_UDE);
 }

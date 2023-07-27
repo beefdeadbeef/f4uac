@@ -69,6 +69,7 @@
 typedef struct {
 	float l;
 	float r;
+	float c;
 } frame_t;
 
 #define NCHANNELS       (sizeof(frame_t)/sizeof(float))

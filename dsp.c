@@ -214,17 +214,18 @@ static void upsample(frame_t *dst, const frame_t *src)
 
 #pragma GCC unroll 8
 		for (i = UPSAMPLE(DR); i; i--) {
-		    frame_t *sample = backlog;
-		    frame_t sum;
+			frame_t *sample = backlog;
+			frame_t sum;
 
-		    sum.l = sum.r = 0.0f;
-		    for (int k = PHASELEN(DR); k; k--, tap++) {
-			sum.l += sample->l * *tap;
-			sum.r += sample->r * *tap;
-			sample++;
-		    }
+			sum.l = sum.r = sum.c = 0.0f;
+			for (int k = PHASELEN(DR); k; k--, tap++) {
+				sum.l += sample->l * *tap;
+				sum.r += sample->r * *tap;
+				sum.c += sample->c * *tap;
+				sample++;
+			}
 
-		    *dst++ = sum;
+			*dst++ = sum;
 		}
 
 		if (flip--) goto flop;
@@ -286,6 +287,7 @@ static void sigmadelta(uint16_t *dst, const frame_t *src)
 	for (uint16_t nframes = NFRAMES; nframes; nframes--, src++) {
 		*dst++ = ns(src->l, zstate);
 		*dst++ = ns(src->r, &zstate[NS_ORDER + 1]);
+		*dst++ = ns(src->c, &zstate[(NS_ORDER + 1)<<1]);
 	}
 }
 
@@ -303,6 +305,7 @@ static inline void reframe_f32(frame_t *dst, const float *src, uint16_t nframes)
 	while (nframes--) {
 		dst->l = format.scale * *src++;
 		dst->r = format.scale * *src++;
+		dst->c = .5f * (dst->l + dst->r);
 		dst++;
 	}
 }
@@ -312,6 +315,7 @@ static inline void reframe_s32(frame_t *dst, const int32_t *src, uint16_t nframe
 	while (nframes--) {
 		dst->l = format.scale * *src++;
 		dst->r = format.scale * *src++;
+		dst->c = .5f * (dst->l + dst->r);
 		dst++;
 	}
 }
@@ -332,6 +336,7 @@ static inline void reframe_s24(frame_t *dst, const uint16_t *src, uint16_t nfram
 		s.u[2] = *src++;
 		dst->l = format.scale * s.l;
 		dst->r = format.scale * s.r;
+		dst->c = .5f * (dst->l + dst->r);
 		dst++;
 	}
 }
@@ -341,6 +346,7 @@ static inline void reframe_s16(frame_t *dst, const int16_t *src, uint16_t nframe
 	while (nframes--) {
 		dst->l = format.scale * *src++;
 		dst->r = format.scale * *src++;
+		dst->c = .5f * (dst->l + dst->r);
 		dst++;
 	}
 }
@@ -433,6 +439,7 @@ static void resample_table(uint16_t *dst)
 		while(count--) {
 			p->l = format.scale * stbl[idx];
 			p->r = - format.scale * stbl[idx];
+			p->c = 0;
 			idx++;
 			p++;
 		}
