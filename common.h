@@ -15,11 +15,6 @@
 #endif
 
 /*
- * we're stereo ffs
- */
-#define NCHANNELS       2
-
-/*
  * number of audio frames after upsampling, must be 2^(4+N)
  */
 #define NFRAMES	        (1 << 10)
@@ -68,6 +63,16 @@
 #endif
 
 /*
+ * audio frame
+ */
+typedef struct {
+	float l;
+	float r;
+} frame_t;
+
+#define NCHANNELS       (sizeof(frame_t)/sizeof(float))
+
+/*
  * double buffered dma halves
  */
 typedef enum {
@@ -94,16 +99,16 @@ typedef enum {
 } sample_rate;
 
 /*
- * frame size, bytes
+ * input frame size, bytes
  */
 static inline uint16_t framesize(sample_fmt fmt)
 {
-	return (const uint8_t []) {
-		4 * NCHANNELS,	/* SAMPLE_FORMAT_NONE */
-		2 * NCHANNELS,	/* SAMPLE_FORMAT_S16 */
-		3 * NCHANNELS,	/* SAMPLE_FORMAT_S24 */
-		4 * NCHANNELS,	/* SAMPLE_FORMAT_S32 */
-		4 * NCHANNELS	/* SAMPLE_FORMAT_F32 */
+	return (const uint16_t []) {
+		2 * 2,	/* SAMPLE_FORMAT_NONE */
+		2 * 2,	/* SAMPLE_FORMAT_S16 */
+		2 * 3,	/* SAMPLE_FORMAT_S24 */
+		2 * 4,	/* SAMPLE_FORMAT_S32 */
+		2 * 4	/* SAMPLE_FORMAT_F32 */
 	} [fmt];
 }
 

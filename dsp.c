@@ -15,6 +15,7 @@
 /*
  *
  */
+static frame_t framebuf[NFRAMES];
 static uint8_t ringbuf[RBSIZE + 4] __attribute__((aligned(4)));
 
 typedef union {
@@ -184,8 +185,8 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
  */
 #define UPSAMPLE(x) (1U << UPSAMPLE_SHIFT_##x)
 #define PHASELEN(x) (NUMTAPS##x >> UPSAMPLE_SHIFT_##x)
-#define BACKLOG(x)  (NCHANNELS * (PHASELEN(x) - 1))
-#define NSAMPLES(x) ((NCHANNELS * NFRAMES) >> UPSAMPLE_SHIFT_##x)
+#define BACKLOG(x)  (PHASELEN(x) - 1)
+#define NSAMPLES(x) (NFRAMES >> UPSAMPLE_SHIFT_##x)
 
 #if (PHASELEN(8) != PHASELEN(16)) || (BACKLOG(8) != BACKLOG(16))
 #error PHASELEN and BACKLOG must match
@@ -197,42 +198,38 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 #define STATELEN (BACKLOG(8) + NSAMPLES(8))
 #endif
 
-static void upsample(float *dst, const float *src)
+static void upsample(frame_t *dst, const frame_t *src)
 {
-	static float state[STATELEN];
-	float *samples = &state[BACKLOG(8)];
-	float *backlog = state;
-	uint16_t i, nframes = format.nframes;
+	static frame_t state[STATELEN];
+	frame_t *samples = &state[BACKLOG(8)];
+	frame_t *backlog = state;
+	unsigned i, nframes = format.nframes;
 
 	while (nframes--) {
 		const float *tap = format.taps;
-
-		*samples++ = *src++;
-		*samples++ = *src++;
-
 		uint32_t flip = !format.f8;
+
+		*samples++ = *src++;
 	flop:
 
 #pragma GCC unroll 8
 		for (i = UPSAMPLE(8); i; i--) {
-		    float *sample = backlog;
-		    float suml, sumr;
-		    uint16_t k;
+		    frame_t *sample = backlog;
+		    frame_t sum;
 
-		    suml = sumr = 0.0f;
-		    for (k = PHASELEN(8); k; k--) {
-			suml += *sample++ * *tap;
-			sumr += *sample++ * *tap;
-			tap++;
+		    sum.l = sum.r = 0.0f;
+		    for (int k = PHASELEN(8); k; k--, tap++) {
+			sum.l += sample->l * *tap;
+			sum.r += sample->r * *tap;
+			sample++;
 		    }
 
-		    *dst++ = suml;
-		    *dst++ = sumr;
+		    *dst++ = sum;
 		}
 
 		if (flip--) goto flop;
 
-		backlog += NCHANNELS;
+		backlog++;
 	}
 
 	samples = state;
@@ -257,14 +254,14 @@ static void reset_zstate()
 	bzero(zstate, sizeof(zstate));
 }
 
-static uint16_t ns(const float *src, float *z)
+static uint16_t ns(float src, float *z)
 {
 	const float *x = abg;
 	const float *g = &abg[NS_ORDER];
 	float sum;
 	int8_t p;
 
-	sum = *src - z[0];
+	sum = src - z[0];
 #if (NS_ORDER == 5)
 	z[5] += *x++ * sum;
 	z[4] += z[5] + *x++ * sum + g[1] * z[3];
@@ -283,45 +280,43 @@ static uint16_t ns(const float *src, float *z)
 	return QF + p;
 }
 
-static void sigmadelta(uint16_t *dst, const float *src)
+static void sigmadelta(uint16_t *dst, const frame_t *src)
 {
 #pragma GCC unroll 4
-	for (uint16_t nframes = NFRAMES; nframes; nframes--) {
-		*dst++ = ns(src++, zstate);
-		*dst++ = ns(src++, &zstate[NS_ORDER + 1]);
+	for (uint16_t nframes = NFRAMES; nframes; nframes--, src++) {
+		*dst++ = ns(src->l, zstate);
+		*dst++ = ns(src->r, &zstate[NS_ORDER + 1]);
 	}
 }
 
-static void resample(uint16_t *dst, const float *src)
+static void resample(uint16_t *dst, const frame_t *src)
 {
-	float samples[NCHANNELS * NFRAMES];
-
-	upsample(samples, src);
-	sigmadelta(dst, samples);
+	upsample(framebuf, src);
+	sigmadelta(dst, framebuf);
 }
 
 /*
  *
  */
-static inline float *reframe_f32(float *dst, const float *src, uint16_t nframes)
+static inline void reframe_f32(frame_t *dst, const float *src, uint16_t nframes)
 {
 	while (nframes--) {
-		*dst++ = format.scale * *src++;
-		*dst++ = format.scale * *src++;
+		dst->l = format.scale * *src++;
+		dst->r = format.scale * *src++;
+		dst++;
 	}
-	return dst;
 }
 
-static inline float *reframe_s32(float *dst, const int32_t *src, uint16_t nframes)
+static inline void reframe_s32(frame_t *dst, const int32_t *src, uint16_t nframes)
 {
 	while (nframes--) {
-		*dst++ = format.scale * *src++;
-		*dst++ = format.scale * *src++;
+		dst->l = format.scale * *src++;
+		dst->r = format.scale * *src++;
+		dst++;
 	}
-	return dst;
 }
 
-static inline float *reframe_s24(float *dst, const uint16_t *src, uint16_t nframes)
+static inline void reframe_s24(frame_t *dst, const uint16_t *src, uint16_t nframes)
 {
 	union {
 		struct __attribute__((packed)) {
@@ -335,43 +330,50 @@ static inline float *reframe_s24(float *dst, const uint16_t *src, uint16_t nfram
 		s.u[0] = *src++;
 		s.u[1] = *src++;
 		s.u[2] = *src++;
-		*dst++ = format.scale * s.l;
-		*dst++ = format.scale * s.r;
+		dst->l = format.scale * s.l;
+		dst->r = format.scale * s.r;
+		dst++;
 	}
-
-	return dst;
 }
 
-static inline float *reframe_s16(float *dst, const int16_t *src, uint16_t nframes)
+static inline void reframe_s16(frame_t *dst, const int16_t *src, uint16_t nframes)
 {
 	while (nframes--) {
-		*dst++ = format.scale * *src++;
-		*dst++ = format.scale * *src++;
+		dst->l = format.scale * *src++;
+		dst->r = format.scale * *src++;
+		dst++;
 	}
-	return dst;
 }
 
-static float *reframe(float *dst, const void *src, uint16_t len)
+/*
+ * reframes len bytes, containing nframes full frames
+ */
+static uint16_t reframe(frame_t *dst, const void *src, uint16_t len)
 {
 	uint16_t nframes = len / format.framesize;
 
 	switch (format.fmt) {
 	case SAMPLE_FORMAT_F32:
-		return reframe_f32(dst, src, nframes);
+		reframe_f32(dst, src, nframes);
+		break;
 
 	case SAMPLE_FORMAT_S32:
-		return reframe_s32(dst, src, nframes);
+		reframe_s32(dst, src, nframes);
+		break;
 
 	case SAMPLE_FORMAT_S24:
-		return reframe_s24(dst, src, nframes);
+		reframe_s24(dst, src, nframes);
+		break;
 
 	case SAMPLE_FORMAT_S16:
-		return reframe_s16(dst, src, nframes);
+		reframe_s16(dst, src, nframes);
+		break;
 
 	case SAMPLE_FORMAT_NONE:
 		break;
 	}
-	return dst;
+
+	return nframes;
 }
 
 #pragma GCC pop_options
@@ -383,14 +385,14 @@ static void resample_ringbuf(uint16_t *dst)
 {
 	uint16_t count, len = format.chunksize;
 	uint16_t tail = 0, framelen = format.framesize;
-	float *p, *buf;
+	frame_t *p, *buf;
 	rb_t r;
 
 	r.u32 = rb.u32;
 
 	if (rb_count(r) < len) return;
 
-	p = buf = alloca(format.nframes * framesize(SAMPLE_FORMAT_F32));
+	p = buf = &framebuf[NFRAMES - format.nframes];
 
 	count = rb_count_to_end(r);
 
@@ -401,7 +403,7 @@ static void resample_ringbuf(uint16_t *dst)
 			tail = framelen - tail;
 			count += tail;
 		}
-		p = reframe(p, &ringbuf[r.tail], count);
+		p += reframe(p, &ringbuf[r.tail], count);
 		len -= count;
 	}
 
@@ -421,17 +423,18 @@ static void resample_table(uint16_t *dst)
 	uint32_t count, slen = sizeof(stbl) / sizeof(stbl[0]);
 	uint32_t nframes = format.nframes;
 	static uint32_t idx;
-	float *p, *buf;
+	frame_t *p, *buf;
 
-	p = buf = alloca(format.chunksize);
+	p = buf = &framebuf[NFRAMES - format.nframes];
 
 	while(nframes) {
 		count = MIN(nframes, slen - idx);
 		nframes -= count;
 		while(count--) {
-			*p++ = format.scale * stbl[idx];
-			*p++ = - format.scale * stbl[idx];
+			p->l = format.scale * stbl[idx];
+			p->r = - format.scale * stbl[idx];
 			idx++;
+			p++;
 		}
 		if (idx == slen) idx = 0;
 	}
