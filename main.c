@@ -6,9 +6,9 @@
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/stm32/crs.h>
+#include <libopencm3/stm32/exti.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/rcc.h>
-#include <libopencm3/stm32/usart.h>
 
 #include "common.h"
 
@@ -81,26 +81,17 @@ void pll_setup(sample_rate rate)
 	clock = clk;
 }
 
-void usart1_isr(void)
+void exti0_isr(void)
 {
-	uint8_t data;
+	static uint32_t toggle;
 
-	if (((USART_CR1(USART1) & USART_CR1_RXNEIE) != 0) &&
-	    ((USART_SR(USART1) & USART_SR_RXNE) != 0)) {
-		data = usart_recv(USART1);
-		usart_send_blocking(USART1, data);
-
-		switch (data) {
-		case 'q':
-			e.state = STATE_DRAIN;
-			break;
-		case 'w':
-			e.state = STATE_FILL;
-			e.seen = false;
-			break;
-		default:
-			return;
-		}
+	exti_reset_request(EXTI0);
+	toggle = ~toggle;
+	if (toggle) {
+		e.state = STATE_FILL;
+		e.seen = false;
+	} else {
+		e.state = STATE_DRAIN;
         }
 }
 
@@ -124,7 +115,6 @@ int main() {
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOC);
 	rcc_periph_clock_enable(RCC_TIM1);
-	rcc_periph_clock_enable(RCC_USART1);
 	rcc_set_hsi_div(RCC_CFGR3_HSIDIV_NODIV);
 	rcc_set_hsi_sclk(RCC_CFGR5_HSI_SCLK_HSIDIV);
 	rcc_set_usb_clock_source(RCC_HSI);
@@ -143,16 +133,17 @@ int main() {
  * gpios
  */
 	gpio_set_mux(AFIO_GMUX_TIM1_A12_B12);	/* CH1-3:A[8:10] CHN1-3 B[13:15] */
+	gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
+		      GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);	/* KEY BTN */
 	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ,
-		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO0|GPIO1);	/* DEBUG */
+		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO1);		/* DEBUG */
 	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
 		      GPIO8|GPIO9|GPIO10|GPIO11|GPIO12);
 
-	gpio_set_mux(AFIO_GMUX_USART1_B6);			/* TX:RX B[6:7] */
 	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_10_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
-		      GPIO6|GPIO7|GPIO13|GPIO14|GPIO15);
+		      GPIO13|GPIO14|GPIO15);
 	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ,
 		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);	/* PWMEN */
 
@@ -161,18 +152,12 @@ int main() {
 
 	gpio_set(GPIOB, GPIO12);
 /*
- * usart
+ * exti
  */
-	usart_set_baudrate(USART1, 921600);
-	usart_set_databits(USART1, 8);
-	usart_set_stopbits(USART1, USART_STOPBITS_1);
-	usart_set_mode(USART1, USART_MODE_TX_RX);
-	usart_set_parity(USART1, USART_PARITY_NONE);
-	usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
-
-	nvic_enable_irq(NVIC_USART1_IRQ);
-	usart_enable_rx_interrupt(USART1);
-	usart_enable(USART1);
+	exti_select_source(EXTI0, GPIOA);
+	exti_set_trigger(EXTI0, EXTI_TRIGGER_FALLING);
+	exti_enable_request(EXTI0);
+	nvic_enable_irq(NVIC_EXTI0_IRQ);
 /*
  *
  */
