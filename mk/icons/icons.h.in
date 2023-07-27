@@ -1,0 +1,12 @@
+/* -*- mode: c -*-
+ */
+
+typedef enum {@ICON_ENUMS@
+	icon_null
+} icon;
+
+typedef struct {
+        const char *p;
+} icons_s;
+
+extern const icons_s icons[];

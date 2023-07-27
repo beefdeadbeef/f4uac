@@ -1,0 +1,8 @@
+/* -*- mode: c -*-
+ */
+
+#include "icons.h"
+@ICON_INCLUDES@
+
+const icons_s icons[] = {@ICON_TABLE@
+};

@@ -10,6 +10,7 @@ CFLAGS		+= -Wall -Wextra -Wshadow -Wredundant-decls
 
 include		$(OPENCM3_DIR)/mk/genlink-config.mk
 include		$(OPENCM3_DIR)/mk/gcc-config.mk
+include		mk/icons/config.mk
 
 CPPFLAGS	+= -MMD
 CPPFLAGS	+= -I$(OPENCM3_DIR)/tests/shared
@@ -39,6 +40,7 @@ $(TABLES):	tables.m
 
 include		$(OPENCM3_DIR)/mk/genlink-rules.mk
 include		$(OPENCM3_DIR)/mk/gcc-rules.mk
+include		mk/icons/rules.mk
 
 -include *.d
 
