@@ -478,7 +478,7 @@ static const struct usb_config_descriptor *configs[] = {
 uint8_t usbd_control_buffer[64];
 
 extern void pll_setup(sample_rate freq);
-extern void rb_setup(sample_fmt format, bool f8);
+extern void rb_setup(sample_fmt format, bool dr);
 extern uint16_t rb_put(void *src, uint16_t len);
 extern void cmute(uac_rq req, uint8_t *val);
 extern void cvolume(uac_rq req, uint16_t ch, int16_t *val);
@@ -496,7 +496,7 @@ static struct {
 	bool cts;
 } fb;
 
-static inline bool f8(sample_rate rate)
+static inline bool doubleratep(sample_rate rate)
 {
 	return rate == SAMPLE_RATE_88200 || rate == SAMPLE_RATE_96000;
 }
@@ -534,7 +534,7 @@ static void sof_cb(void)
 
 	if (!--sofn) {
 		feedback = ((e.state == STATE_FILL) ? FEEDBACK :
-			    FEEDBACK_MIN + DELTA_SHIFT(delta)) << f8(freq);
+			    FEEDBACK_MIN + DELTA_SHIFT(delta)) << doubleratep(freq);
 		trace(2, feedback);
 		sofn = (1 << SOF_SHIFT);
 		delta = 0;
@@ -563,7 +563,7 @@ static void altset_cb(usbd_device *usbd_dev,
 		format = wValue;
 		framelen = framesize(format);
 		if (format) {
-			rb_setup(format, f8(freq));
+			rb_setup(format, doubleratep(freq));
 			e.state = STATE_FILL;
 			fb.rts = fb.cts = true;
 		} else {
@@ -625,7 +625,7 @@ static enum usbd_request_return_codes control_cs_ep_cb(
 		switch (req->bRequest) {
 		case UAC_SET_CUR:
 			debugf("set_cur: freq: %d new: %d\n", freq, r->freq);
-			rb_setup(format, f8(r->freq));
+			rb_setup(format, doubleratep(r->freq));
 			if (freq == r->freq) break;
 			pll_setup(r->freq);
 			freq = r->freq;

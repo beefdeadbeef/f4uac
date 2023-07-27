@@ -53,7 +53,7 @@ static inline uint16_t rb_space_to_end(rb_t r)
 }
 
 static struct {
-	bool f8;
+	bool doublerate;
 	sample_fmt fmt;
 	uint16_t nframes;
 	uint16_t framesize;
@@ -78,18 +78,18 @@ static void set_scale()
 	} [format.fmt];
 }
 
-void rb_setup(sample_fmt fmt, bool f8)
+void rb_setup(sample_fmt fmt, bool dr)
 {
 	rb.u32 = 0;
 
-	format.f8 = f8;
+	format.doublerate = dr;
 	format.fmt = fmt;
-	format.nframes = f8 ?
+	format.nframes = dr ?
 		NFRAMES >> UPSAMPLE_SHIFT_8 :
 		NFRAMES >> UPSAMPLE_SHIFT_16;
 	format.framesize = framesize(fmt);
 	format.chunksize = format.framesize * format.nframes;
-	format.taps = f8 ? hc8 : hc16;
+	format.taps = dr ? hc8 : hc16;
 	reset_zstate();
 	set_scale();
 }
@@ -207,7 +207,7 @@ static void upsample(frame_t *dst, const frame_t *src)
 
 	while (nframes--) {
 		const float *tap = format.taps;
-		uint32_t flip = !format.f8;
+		uint32_t flip = !format.doublerate;
 
 		*samples++ = *src++;
 	flop:
