@@ -55,6 +55,7 @@ void pwm();
 void pwm_enable();
 void usbd(void);
 void pump(page_t);
+void uac_notify();
 
 void sys_tick_handler(void)
 {
@@ -89,10 +90,16 @@ void pll_setup(sample_rate rate)
 
 void speaker()
 {
-	if (e.state == STATE_RUNNING && cstate.speaker)
+	if (e.state == STATE_RUNNING && cstate.speaker) {
 		gpio_clear(GPIOB, GPIO12);
-	else
+		if (cstate.boost)
+			gpio_clear(GPIOA, GPIO15);
+		else
+			gpio_set(GPIOA, GPIO15);
+	} else {
+		gpio_set(GPIOA, GPIO15);
 		gpio_set(GPIOB, GPIO12);
+	}
 }
 
 void exti9_5_isr(void)
@@ -100,11 +107,11 @@ void exti9_5_isr(void)
 	bool sp;
 	exti_reset_request(EXTI9);
 	/* jsense active high */
-	sp = !gpio_get(GPIOB, GPIO9);
+	sp = gpio_get(GPIOB, GPIO9) == 0;
 	if (cstate.speaker != sp) {
 		cstate.speaker = sp;
 		cstate.boost = sp;
-		/* TODO update host */
+		uac_notify();
 	}
 	speaker();
 }
@@ -146,14 +153,16 @@ int main() {
 /*
  * gpios
  */
-	gpio_set_mux(AFIO_GMUX_TIM1_A12_B12);	/* CH1-3:A[8:10] CHN1-3 B[13:15] */
+	gpio_set_mux(AFIO_GMUX_SWJ_NO_JTAG);
 	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ,
 		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO0|GPIO1);	/* DEBUG */
-	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ,
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO15);	/* PWMEN1 */
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
 		      GPIO8|GPIO9|GPIO10|GPIO11|GPIO12);
 
-	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_10_MHZ,
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
 		      GPIO13|GPIO14|GPIO15);
 	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ,
@@ -162,7 +171,8 @@ int main() {
 	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ,
 		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);	/* PC13 LED */
 
-	cstate.boost = cstate.speaker = !gpio_get(GPIOB, GPIO9);
+	cstate.boost = cstate.speaker = (gpio_get(GPIOB, GPIO9) == 0);
+	gpio_set(GPIOA, GPIO15);
 	gpio_set(GPIOB, GPIO12);
 /*
  * exti

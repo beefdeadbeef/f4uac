@@ -15,12 +15,21 @@
 #define __usb_irq NVIC_USB_LP_IRQ
 
 #define PKTSIZE0 16
-#define MIN_PACKET_SIZE 32
+#define MIN_PACKET_SIZE 8
 
 #define ISO_PACKET_SIZE 576
 #define ISO_SYNC_PACKET_SIZE 3
 #define ISO_OUT_ENDP_ADDR 0x01
-#define ISO_IN_ENDP_ADDR 0x86
+#define ISO_IN_ENDP_ADDR 0x84
+
+#define INTR_PACKET_SIZE 2
+#define INTR_IN_ENDP_ADDR 0x86
+
+#define UAC_IT_PCM_ID		1
+#define UAC_FU_MAIN_ID		2
+#define UAC_FU_SPEAKER_ID	3
+#define UAC_OT_HEADSET_ID	4
+#define UAC_OT_SPEAKER_ID	5
 
 typedef enum  {
 	UAC_SET_CUR = 1,
@@ -32,6 +41,12 @@ typedef enum  {
 	UAC_GET_MAX,
 	UAC_GET_RES
 } uac_request_t;
+
+typedef enum {
+	UAC_FU_MUTE = 1,
+	UAC_FU_VOLUME = 2,
+	UAC_FU_BASS_BOOST = 9
+} uac_fu_sc_t;
 
 static const char * const usb_strings[] = {
 	"Acme Corp",
@@ -73,7 +88,10 @@ static const struct {
 	struct usb_audio_header_descriptor_body header_body;
 	struct usb_audio_input_terminal_descriptor input_terminal_desc;
 	struct usb_audio_feature_unit_descriptor_2ch feature_unit_desc;
-	struct usb_audio_output_terminal_descriptor output_terminal_desc;
+	struct usb_audio_feature_unit_descriptor_2ch feature_unit_desc_speaker;
+	struct usb_audio_output_terminal_descriptor headset_desc;
+	struct usb_audio_output_terminal_descriptor speaker_desc;
+	struct usb_audio_stream_endpoint_descriptor intr_ep;
 
 	struct usb_interface_descriptor audio_streaming_iface_0;
 
@@ -121,7 +139,7 @@ static const struct {
 		.bDescriptorType = USB_DT_INTERFACE,
 		.bInterfaceNumber = 0,
 		.bAlternateSetting = 0,
-		.bNumEndpoints = 0,
+		.bNumEndpoints = 1,
 		.bInterfaceClass = USB_CLASS_AUDIO,
 		.bInterfaceSubClass = USB_AUDIO_SUBCLASS_CONTROL,
 		.bInterfaceProtocol = 0,
@@ -137,7 +155,10 @@ static const struct {
 		sizeof(struct usb_audio_header_descriptor_body) +
 		sizeof(struct usb_audio_input_terminal_descriptor) +
 		sizeof(struct usb_audio_feature_unit_descriptor_2ch) +
-		sizeof(struct usb_audio_output_terminal_descriptor),
+		sizeof(struct usb_audio_feature_unit_descriptor_2ch) +
+		sizeof(struct usb_audio_output_terminal_descriptor) +
+		sizeof(struct usb_audio_output_terminal_descriptor) +
+		sizeof(struct usb_audio_stream_endpoint_descriptor),
 		.binCollection = 1,
 	},
 	.header_body = {
@@ -147,7 +168,7 @@ static const struct {
 		.bLength = sizeof(struct usb_audio_input_terminal_descriptor),
 		.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
 		.bDescriptorSubtype = USB_AUDIO_TYPE_INPUT_TERMINAL,
-		.bTerminalID = 1,
+		.bTerminalID = UAC_IT_PCM_ID,
 		.wTerminalType = 0x101,
 		.bAssocTerminal = 0,
 		.bNrChannels = 1,
@@ -160,8 +181,8 @@ static const struct {
 			.bLength = sizeof(struct usb_audio_feature_unit_descriptor_2ch),
 			.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
 			.bDescriptorSubtype = USB_AUDIO_TYPE_FEATURE_UNIT,
-			.bUnitID = 2,
-			.bSourceID = 1,
+			.bUnitID = UAC_FU_MAIN_ID,
+			.bSourceID = UAC_IT_PCM_ID,
 			.bControlSize = 2,
 			.bmaControlMaster = 1,
 		},
@@ -174,19 +195,56 @@ static const struct {
 			}
 		},
 		.tail = {
-			.iFeature = 0x00,
+			.iFeature = 0,
 		}
 	},
-	.output_terminal_desc = {
+	.feature_unit_desc_speaker = {
+		.head = {
+			.bLength = sizeof(struct usb_audio_feature_unit_descriptor_2ch),
+			.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
+			.bDescriptorSubtype = USB_AUDIO_TYPE_FEATURE_UNIT,
+			.bUnitID = UAC_FU_SPEAKER_ID,
+			.bSourceID = UAC_FU_MAIN_ID,
+			.bControlSize = 2,
+			.bmaControlMaster = 0x101,
+		},
+		.tail = {
+			.iFeature = 0,
+		}
+	},
+
+	.headset_desc = {
 		.bLength = sizeof(struct usb_audio_output_terminal_descriptor),
 		.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
 		.bDescriptorSubtype = USB_AUDIO_TYPE_OUTPUT_TERMINAL,
-		.bTerminalID = 3,
-		.wTerminalType = 0x301,
+		.bTerminalID = UAC_OT_HEADSET_ID,
+		.wTerminalType = 0x302,
 		.bAssocTerminal = 0,
-		.bSourceID = 0x02,
+		.bSourceID = UAC_FU_MAIN_ID,
 		.iTerminal = 0,
 	},
+
+	.speaker_desc = {
+		.bLength = sizeof(struct usb_audio_output_terminal_descriptor),
+		.bDescriptorType = USB_AUDIO_DT_CS_INTERFACE,
+		.bDescriptorSubtype = USB_AUDIO_TYPE_OUTPUT_TERMINAL,
+		.bTerminalID = UAC_OT_SPEAKER_ID,
+		.wTerminalType = 0x301,
+		.bAssocTerminal = 0,
+		.bSourceID = UAC_FU_SPEAKER_ID,
+		.iTerminal = 0,
+	},
+	.intr_ep = {
+		.bLength = USB_DT_ENDPOINT_SIZE + 2,
+		.bDescriptorType = USB_DT_ENDPOINT,
+		.bEndpointAddress = INTR_IN_ENDP_ADDR,
+		.bmAttributes = USB_ENDPOINT_ATTR_INTERRUPT,
+		.wMaxPacketSize = INTR_PACKET_SIZE,
+		.bInterval = 10,
+		.bRefresh = 0,
+		.bSynchAddress = 0,
+	},
+
 	.audio_streaming_iface_0 = {
 		.bLength = USB_DT_INTERFACE_SIZE,
 		.bDescriptorType = USB_DT_INTERFACE,
@@ -493,6 +551,7 @@ extern void pll_setup(sample_rate freq);
 extern void rb_setup(sample_fmt format, bool dr);
 extern uint16_t rb_put(void *src, uint16_t len);
 extern void set_scale();
+extern void speaker();
 extern volatile ev_t e;
 extern volatile cs_t cstate;
 
@@ -506,11 +565,28 @@ static sample_rate freq = SAMPLE_RATE_48000;
 static struct {
 	bool rts;
 	bool cts;
-} fb;
+} fb, ac = { false, true };
+
+static uint8_t acstatus[2];
 
 static inline bool doubleratep(sample_rate rate)
 {
 	return rate == SAMPLE_RATE_88200 || rate == SAMPLE_RATE_96000;
+}
+
+void uac_notify()
+{
+	acstatus[0] = 0x80;
+	acstatus[1] = UAC_FU_SPEAKER_ID;
+	ac.rts = true;
+}
+
+static void intr_tx_cb(usbd_device *usbd_dev, uint8_t ep)
+{
+	(void)usbd_dev;
+	(void)ep;
+
+	ac.cts = true;
 }
 
 static void iso_tx_cb(usbd_device *usbd_dev, uint8_t ep)
@@ -542,6 +618,18 @@ static void sof_cb(void)
 	static uint32_t sofn = (1 << SOF_SHIFT);
 	static uint32_t feedback;
 
+	if (!(ac.rts && ac.cts)) goto feedback;
+
+	if (usbd_ep_write_packet(usbdev, INTR_IN_ENDP_ADDR,
+				 (const void *)acstatus,
+				 INTR_PACKET_SIZE)) {
+		trace(3, *(uint16_t *)acstatus);
+		ac.rts = false;
+	}
+	ac.cts = false;
+
+feedback:
+
 	if (format == SAMPLE_FORMAT_NONE) return;
 
 	if (!--sofn) {
@@ -555,10 +643,9 @@ static void sof_cb(void)
 
 	if (!(fb.rts && fb.cts)) return;
 
-	if (usbd_ep_write_packet(usbdev,
-				 ISO_IN_ENDP_ADDR,
+	if (usbd_ep_write_packet(usbdev, ISO_IN_ENDP_ADDR,
 				 (const void *)&feedback,
-				 ISO_SYNC_PACKET_SIZE) == ISO_SYNC_PACKET_SIZE) {
+				 ISO_SYNC_PACKET_SIZE)) {
 		fb.rts = false;
 	}
 	fb.cts = false;
@@ -603,7 +690,7 @@ static enum usbd_request_return_codes control_cs_cb(
 
 	/* wValue: ControlSelector | ChannelNumber */
 	switch ((req->wIndex & 0xff00) | (req->wValue >> 8)) {
-	case 0x201:		/* master mute control */
+	case (UAC_FU_MAIN_ID <<8 | UAC_FU_MUTE):
 		switch(req->bRequest) {
 		case UAC_SET_CUR:
 			cstate.muted = **buf;
@@ -615,7 +702,7 @@ static enum usbd_request_return_codes control_cs_cb(
 		default:
 			return USBD_REQ_NOTSUPP;
 		}
-	case 0x202:		/* volume control */
+	case (UAC_FU_MAIN_ID << 8 | UAC_FU_VOLUME):
 		switch (req->bRequest) {
 		case UAC_SET_CUR:
 		{
@@ -643,6 +730,31 @@ static enum usbd_request_return_codes control_cs_cb(
 		debugf("req: %02x val: %d (%d)\n",
 		       req->bRequest, *(int16_t *)*buf, cstate.attn);
 		return USBD_REQ_HANDLED;
+	case (UAC_FU_SPEAKER_ID << 8 | UAC_FU_MUTE):
+		switch (req->bRequest) {
+		case UAC_SET_CUR:
+			cstate.speaker = **buf == 0;
+			speaker();
+			return USBD_REQ_HANDLED;
+		case UAC_GET_CUR:
+			**buf = !cstate.speaker;
+			return USBD_REQ_HANDLED;
+		default:
+			return USBD_REQ_NOTSUPP;
+		}
+	case (UAC_FU_SPEAKER_ID << 8 | UAC_FU_BASS_BOOST):
+		switch (req->bRequest) {
+		case UAC_SET_CUR:
+			cstate.boost = **buf;
+			speaker();
+			return USBD_REQ_HANDLED;
+		case UAC_GET_CUR:
+			**buf = cstate.boost;
+			return USBD_REQ_HANDLED;
+		default:
+			break;
+		}
+		return USBD_REQ_NOTSUPP;
 	default:
 		return USBD_REQ_NOTSUPP;
 	}
@@ -706,6 +818,13 @@ static void usbd_set_config(usbd_device *usbd_dev, uint16_t wValue)
 		USB_ENDPOINT_ATTR_ISOCHRONOUS,
 		MIN_PACKET_SIZE,
 		iso_tx_cb);
+
+	usbd_ep_setup(
+		usbd_dev,
+		INTR_IN_ENDP_ADDR,
+		USB_ENDPOINT_ATTR_INTERRUPT,
+		MIN_PACKET_SIZE,
+		intr_tx_cb);
 
 	usbd_register_sof_callback(usbd_dev, sof_cb);
 
