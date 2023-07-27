@@ -2,7 +2,7 @@
 OPENCM3_DIR	= libopencm3
 DEVICE		= at32f403acgu
 BINARY		= f4uac
-OBJS		= main.o pwm.o usbd.o dsp.o trace.o trace_stdio.o
+OBJS		= main.o pwm.o usbd.o dsp.o tables.o trace.o trace_stdio.o
 VPATH		= $(OPENCM3_DIR)/tests/shared
 
 CFLAGS		+= -pipe -g -Os -flto
@@ -24,18 +24,18 @@ MAKEFLAGS += --no-print-directory
 endif
 #---------------------------------------------------------------
 OCTAVE		= octave
-TABLES		= tables.h
+TABLES		= tables.h tables.c
 
 all:		lib $(BINARY).elf $(BINARY).bin
 
 lib:
 		$(Q)$(MAKE) -C $(OPENCM3_DIR) lib TARGETS=at32/f40x CFLAGS=-flto AR=$(CC)-ar
 
-$(TABLES): %.h: %.m
+dsp.o usbd.o:	tables.h
+
+$(TABLES):	tables.m
 		@printf "  OCT     $@\n"
 		$(Q)$(OCTAVE) -qf $< $@
-
-dsp.o:		$(TABLES)
 
 include		$(OPENCM3_DIR)/mk/genlink-rules.mk
 include		$(OPENCM3_DIR)/mk/gcc-rules.mk
