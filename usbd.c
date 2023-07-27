@@ -483,6 +483,7 @@ extern uint16_t rb_put(void *src, uint16_t len);
 extern void cmute(uac_rq req, uint8_t *val);
 extern void cvolume(uac_rq req, uint16_t ch, int16_t *val);
 extern volatile ev_t e;
+extern volatile cs_t cstate;
 
 static usbd_device * usbdev;
 static uint32_t delta;
@@ -677,6 +678,7 @@ static void usbd_set_config(usbd_device *usbd_dev, uint16_t wValue)
 		USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
 		control_cs_ep_cb);
 
+	cstate.src = CS_SRC_USB;
 }
 
 void usbd(void)

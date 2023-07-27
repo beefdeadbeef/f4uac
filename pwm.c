@@ -3,7 +3,6 @@
  *  Copyright (C) 2021-2022 Sergey Bolshakov <beefdeadbeef@gmail.com>
  */
 
-#include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/dma.h>
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/nvic.h>
@@ -84,16 +83,18 @@ void pwm()
 	timer_enable_irq(TIM1, TIM_DIER_UDE);
 }
 
+extern void speaker();
+
 void pwm_enable(void)
 {
 	timer_enable_break_main_output(TIM1);
 	timer_enable_counter(TIM1);
-	gpio_clear(GPIOB, GPIO12);
+	speaker();
 }
 
 static void pwm_disable(void)
 {
-	gpio_set(GPIOB, GPIO12);
+	speaker();
 	timer_disable_counter(TIM1);
 	timer_disable_break_main_output(TIM1);
 }

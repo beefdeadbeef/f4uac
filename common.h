@@ -128,6 +128,17 @@ typedef struct {
 } ev_t;
 
 /*
+ *
+ */
+typedef struct {
+	enum { CS_SRC_NONE, CS_SRC_USB } src;
+	bool muted;
+	bool speaker;
+	bool boost;
+	uint16_t attn;
+} cs_t;
+
+/*
  * Audio Class-Specific Request Codes
  */
 typedef enum  {

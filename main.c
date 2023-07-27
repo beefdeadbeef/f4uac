@@ -40,9 +40,15 @@ const struct rcc_clock_scale rcc_hse_custom[] = {
 static const struct rcc_clock_scale *clock = rcc_hse_custom;
 
 volatile uint32_t systicks;
+
 volatile ev_t e = {
 	.seen = true,
 	.state = STATE_CLOSED
+};
+
+volatile cs_t cstate = {
+	.muted = true,
+	.attn = 6
 };
 
 void pwm();
@@ -79,6 +85,28 @@ void pll_setup(sample_rate rate)
 	while(rcc_is_osc_ready(RCC_PLL));
 	rcc_clock_setup_pll(clk);
 	clock = clk;
+}
+
+void speaker()
+{
+	if (e.state == STATE_RUNNING && cstate.speaker)
+		gpio_clear(GPIOB, GPIO12);
+	else
+		gpio_set(GPIOB, GPIO12);
+}
+
+void exti9_5_isr(void)
+{
+	bool sp;
+	exti_reset_request(EXTI9);
+	/* jsense active high */
+	sp = !gpio_get(GPIOB, GPIO9);
+	if (cstate.speaker != sp) {
+		cstate.speaker = sp;
+		cstate.boost = sp;
+		/* TODO update host */
+	}
+	speaker();
 }
 
 static void poll()
@@ -134,7 +162,15 @@ int main() {
 	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ,
 		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);	/* PC13 LED */
 
+	cstate.boost = cstate.speaker = !gpio_get(GPIOB, GPIO9);
 	gpio_set(GPIOB, GPIO12);
+/*
+ * exti
+ */
+	exti_select_source(EXTI9, GPIOB);
+	exti_set_trigger(EXTI9, EXTI_TRIGGER_BOTH);
+	exti_enable_request(EXTI9);
+	nvic_enable_irq(NVIC_EXTI9_5_IRQ);
 /*
  *
  */

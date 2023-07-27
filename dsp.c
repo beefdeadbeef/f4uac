@@ -12,6 +12,8 @@
 #include "dsp.h"
 #include "tables.h"
 
+extern volatile cs_t cstate;
+
 /*
  *
  */
@@ -62,13 +64,11 @@ static struct {
 	const float *taps;
 } format;
 
-static bool muted;
-static uint16_t volidx = 6;
 static void reset_zstate();
 
 static void set_scale()
 {
-	uint16_t idx = muted ? VOLSTEPS - 1 : volidx;
+	uint16_t idx = cstate.muted ? VOLSTEPS - 1 : cstate.attn;
 	format.scale = scale[idx]  / (const float[]) {
 		[SAMPLE_FORMAT_NONE] = 1<<0,
 		[SAMPLE_FORMAT_S16] = 1<<15,
@@ -134,11 +134,11 @@ void cmute(uac_rq req, uint8_t *val)
 {
 	switch (req) {
 	case UAC_SET_CUR:
-		muted = *val;
+		cstate.muted = *val;
 		set_scale();
 		break;
 	case UAC_GET_CUR:
-		*val = muted;
+		*val = cstate.muted;
 		break;
 	default:
 		break;
@@ -153,7 +153,7 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 	{
 		uint16_t i = 0;
 		while (i < VOLSTEPS && db[i] > *val) i++;
-		volidx = i;
+		cstate.attn = i;
 		set_scale();
 		break;
 	}
@@ -162,7 +162,7 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 	case UAC_SET_RES:
 		break;
 	case UAC_GET_CUR:
-		*val =  db[volidx];
+		*val =  db[cstate.attn];
 		break;
 	case UAC_GET_MIN:
 		*val = db[VOLSTEPS - 1];
@@ -174,7 +174,7 @@ void cvolume(uac_rq req, uint16_t chan, int16_t *val)
 		*val = 256;	/* 1dB step */
 	}
 	debugf("req: %02x chan: %02x val: %d (%d)\n",
-	       req, chan, *val, volume.level);
+	       req, chan, *val, cstate.attn);
 }
 
 #pragma GCC push_options
@@ -363,7 +363,7 @@ static void sigmadelta(uint16_t *dst, const frame_t *src)
 
 static void resample(uint16_t *dst, frame_t *src)
 {
-	filter(src);
+	if (cstate.boost) filter(src);
 	upsample(framebuf, src);
 	sigmadelta(dst, framebuf);
 }
