@@ -66,7 +66,7 @@ static struct {
 
 static void reset_zstate();
 
-static void set_scale()
+void set_scale()
 {
 	uint16_t idx = cstate.muted ? VOLSTEPS - 1 : cstate.attn;
 	format.scale = scale[idx]  / (const float[]) {
@@ -125,56 +125,6 @@ uint16_t rb_put(void *src, uint16_t len)
 	}
 
 	return space;
-}
-
-/*
- *
- */
-void cmute(uac_rq req, uint8_t *val)
-{
-	switch (req) {
-	case UAC_SET_CUR:
-		cstate.muted = *val;
-		set_scale();
-		break;
-	case UAC_GET_CUR:
-		*val = cstate.muted;
-		break;
-	default:
-		break;
-	}
-}
-
-void cvolume(uac_rq req, uint16_t chan, int16_t *val)
-{
-	(void) chan;
-	switch (req) {
-	case UAC_SET_CUR:
-	{
-		uint16_t i = 0;
-		while (i < VOLSTEPS && db[i] > *val) i++;
-		cstate.attn = i;
-		set_scale();
-		break;
-	}
-	case UAC_SET_MIN:
-	case UAC_SET_MAX:
-	case UAC_SET_RES:
-		break;
-	case UAC_GET_CUR:
-		*val =  db[cstate.attn];
-		break;
-	case UAC_GET_MIN:
-		*val = db[VOLSTEPS - 1];
-		break;
-	case UAC_GET_MAX:
-		*val = 0;
-		break;
-	case UAC_GET_RES:
-		*val = 256;	/* 1dB step */
-	}
-	debugf("req: %02x chan: %02x val: %d (%d)\n",
-	       req, chan, *val, cstate.attn);
 }
 
 #pragma GCC push_options

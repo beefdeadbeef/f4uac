@@ -139,20 +139,6 @@ typedef struct {
 } cs_t;
 
 /*
- * Audio Class-Specific Request Codes
- */
-typedef enum  {
-	UAC_SET_CUR = 1,
-	UAC_SET_MIN,
-	UAC_SET_MAX,
-	UAC_SET_RES,
-	UAC_GET_CUR = 0x81,
-	UAC_GET_MIN,
-	UAC_GET_MAX,
-	UAC_GET_RES
-} uac_rq;
-
-/*
  *
  */
 #define MIN(a,b) ((a) < (b) ? (a) : (b))

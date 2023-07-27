@@ -8,6 +8,7 @@
 #include <libopencm3/usb/usbd.h>
 
 #include "common.h"
+#include "tables.h"
 
 #define __usb_isr usb_lp_isr
 #define __usb_driver st_usbfs_v1_usb_driver
@@ -20,6 +21,17 @@
 #define ISO_SYNC_PACKET_SIZE 3
 #define ISO_OUT_ENDP_ADDR 0x01
 #define ISO_IN_ENDP_ADDR 0x86
+
+typedef enum  {
+	UAC_SET_CUR = 1,
+	UAC_SET_MIN,
+	UAC_SET_MAX,
+	UAC_SET_RES,
+	UAC_GET_CUR = 0x81,
+	UAC_GET_MIN,
+	UAC_GET_MAX,
+	UAC_GET_RES
+} uac_request_t;
 
 static const char * const usb_strings[] = {
 	"Acme Corp",
@@ -480,8 +492,7 @@ uint8_t usbd_control_buffer[64];
 extern void pll_setup(sample_rate freq);
 extern void rb_setup(sample_fmt format, bool dr);
 extern uint16_t rb_put(void *src, uint16_t len);
-extern void cmute(uac_rq req, uint8_t *val);
-extern void cvolume(uac_rq req, uint16_t ch, int16_t *val);
+extern void set_scale();
 extern volatile ev_t e;
 extern volatile cs_t cstate;
 
@@ -591,12 +602,46 @@ static enum usbd_request_return_codes control_cs_cb(
 	       req->bRequest, req->wValue, req->wIndex, *len, *buf[0]);
 
 	/* wValue: ControlSelector | ChannelNumber */
-	switch (req->wValue >> 8) {
-	case 1:                 /* master mute control */
-		cmute(req->bRequest, *buf);
-		return USBD_REQ_HANDLED;
-	case 2:                 /* volume control */
-		cvolume(req->bRequest, req->wValue, (int16_t *)*buf);
+	switch ((req->wIndex & 0xff00) | (req->wValue >> 8)) {
+	case 0x201:		/* master mute control */
+		switch(req->bRequest) {
+		case UAC_SET_CUR:
+			cstate.muted = **buf;
+			set_scale();
+			return USBD_REQ_HANDLED;
+		case UAC_GET_CUR:
+			**buf = cstate.muted;
+			return USBD_REQ_HANDLED;
+		default:
+			return USBD_REQ_NOTSUPP;
+		}
+	case 0x202:		/* volume control */
+		switch (req->bRequest) {
+		case UAC_SET_CUR:
+		{
+			uint16_t i = 0;
+			while (i < VOLSTEPS && db[i] > *(int16_t *)*buf) i++;
+			cstate.attn = i;
+			set_scale();
+			break;
+		}
+		case UAC_GET_CUR:
+			*(int16_t *)*buf = db[cstate.attn];
+			break;
+		case UAC_GET_MIN:
+			*(int16_t *)*buf = db[VOLSTEPS - 1];
+			break;
+		case UAC_GET_MAX:
+			*(int16_t *)*buf = 0;
+			break;
+		case UAC_GET_RES:
+			*(int16_t *)*buf = 256;     /* 1dB step */
+			break;
+		default:
+			return USBD_REQ_NOTSUPP;
+		}
+		debugf("req: %02x val: %d (%d)\n",
+		       req->bRequest, *(int16_t *)*buf, cstate.attn);
 		return USBD_REQ_HANDLED;
 	default:
 		return USBD_REQ_NOTSUPP;
