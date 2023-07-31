@@ -129,17 +129,25 @@ static void disp_fill_page(unsigned page)
 		}
 		break;
 	}
-	case 9 ... 10:
+	case 9:
 		disp_draw_bar(0xff, disp_f_to_idx(4 * cstate.rms[1]));
 		dispbuf[disp_f_to_idx(4 * cstate.peak[1])] = 0x55;
 		break;
+	case 10:
+		disp_draw_bar(0x7f, disp_f_to_idx(4 * cstate.rms[1]));
+		dispbuf[disp_f_to_idx(4 * cstate.peak[1])] = 0x55;
+		break;
 	case 11:
-		disp_draw_bar(0x60, disp_f_to_idx(scale[cstate.attn]));
+		disp_draw_bar(0x70, disp_f_to_idx(scale[cstate.attn]));
 		break;
 	case 12:
-		disp_draw_bar(0x06, disp_f_to_idx(scale[cstate.attn]));
+		disp_draw_bar(0x0e, disp_f_to_idx(scale[cstate.attn]));
 		break;
-	case 13 ... 14:
+	case 13:
+		disp_draw_bar(0xfe, disp_f_to_idx(4 * cstate.rms[0]));
+		dispbuf[disp_f_to_idx(4 * cstate.peak[0])] = 0xaa;
+		break;
+	case 14:
 		disp_draw_bar(0xff, disp_f_to_idx(4 * cstate.rms[0]));
 		dispbuf[disp_f_to_idx(4 * cstate.peak[0])] = 0xaa;
 	default:
