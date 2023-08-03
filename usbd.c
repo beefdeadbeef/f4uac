@@ -559,8 +559,6 @@ static usbd_device * usbdev;
 static uint32_t delta;
 static uint32_t total;
 static uint16_t framelen;
-static sample_fmt format;
-static sample_rate freq = SAMPLE_RATE_48000;
 
 static struct {
 	bool rts;
@@ -630,11 +628,11 @@ static void sof_cb(void)
 
 feedback:
 
-	if (format == SAMPLE_FORMAT_NONE) return;
+	if (cstate.format == SAMPLE_FORMAT_NONE) return;
 
 	if (!--sofn) {
 		feedback = ((e.state == STATE_FILL) ? FEEDBACK :
-			    FEEDBACK_MIN + DELTA_SHIFT(delta)) << doubleratep(freq);
+			    FEEDBACK_MIN + DELTA_SHIFT(delta)) << doubleratep(cstate.rate);
 		trace(2, feedback);
 		sofn = (1 << SOF_SHIFT);
 		delta = 0;
@@ -659,14 +657,14 @@ static void altset_cb(usbd_device *usbd_dev,
 
 	switch (wIndex) {		/* wIndex: iface # */
 	case 1:				/* wValue: alt setting # */
-		format = wValue;
-		framelen = framesize(format);
-		if (format) {
-			rb_setup(format, doubleratep(freq));
+		cstate.format = wValue;
+		framelen = framesize(wValue);
+		if (wValue) {
+			rb_setup(wValue, doubleratep(cstate.rate));
 			e.state = STATE_FILL;
 			fb.rts = fb.cts = true;
 		} else {
-			rb_setup(format, false);
+			rb_setup(wValue, false);
 			e.state = total ? STATE_DRAIN : STATE_CLOSED;
 			fb.rts = fb.cts = false;
 			total = 0;
@@ -782,15 +780,15 @@ static enum usbd_request_return_codes control_cs_ep_cb(
 
 		switch (req->bRequest) {
 		case UAC_SET_CUR:
-			debugf("set_cur: freq: %d new: %d\n", freq, r->freq);
-			rb_setup(format, doubleratep(r->freq));
-			if (freq == r->freq) break;
+			debugf("set_cur: freq: %d new: %d\n", cstate.rate , r->freq);
+			rb_setup(cstate.format, doubleratep(r->freq));
+			if (cstate.rate == r->freq) break;
 			pll_setup(r->freq);
-			freq = r->freq;
+			cstate.rate = r->freq;
 			break;
 		case UAC_GET_CUR:
-			debugf("get_cur: freq: %d\n", freq);
-			r->freq = freq;
+			debugf("get_cur: freq: %d\n", cstate.rate);
+			r->freq = cstate.rate;
 		default:
 			break;
 		}

@@ -49,7 +49,8 @@ volatile ev_t e = {
 volatile cs_t cstate = {
 	.on[muted] = true,
 	.on[spmuted] = true,
-	.attn = 6
+	.attn = 6,
+	.rate = SAMPLE_RATE_48000
 };
 
 void disp();
@@ -75,8 +76,7 @@ void pll_setup(sample_rate rate)
 	case SAMPLE_RATE_88200:
 		clk = &rcc_hse_custom[1];
 		break;
-	case SAMPLE_RATE_48000:
-	case SAMPLE_RATE_96000:
+	default:
 		clk = rcc_hse_custom;
 	}
 

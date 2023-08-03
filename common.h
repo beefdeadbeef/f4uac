@@ -94,6 +94,7 @@ typedef enum {
 } sample_fmt;
 
 typedef enum {
+	SAMPLE_RATE_NONE,
 	SAMPLE_RATE_44100 = 44100,
 	SAMPLE_RATE_48000 = 48000,
 	SAMPLE_RATE_88200 = 88200,
@@ -134,6 +135,8 @@ enum { spmuted, boost, muted, sine, usb, sw_num };
 typedef struct {
 	bool on[sw_num];
 	uint16_t attn;
+	sample_fmt format;
+	sample_rate rate;
 	float rms[2];
 	float peak[2];
 } cs_t;
