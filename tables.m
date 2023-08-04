@@ -74,7 +74,7 @@ function s = sample(n, fs)
 endfunction
 
 %---------------------------------------------------------------
-VOLSTEPS=64;
+VOLSTEPS=61;
 ATTN = 10^(-3/20);
 
 function x = db(x)
