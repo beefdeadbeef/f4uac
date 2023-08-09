@@ -25,12 +25,6 @@
 #define INTR_PACKET_SIZE 2
 #define INTR_IN_ENDP_ADDR 0x86
 
-#define UAC_IT_PCM_ID		1
-#define UAC_FU_MAIN_ID		2
-#define UAC_FU_SPEAKER_ID	3
-#define UAC_OT_HEADSET_ID	4
-#define UAC_OT_SPEAKER_ID	5
-
 typedef enum  {
 	UAC_SET_CUR = 1,
 	UAC_SET_MIN,
@@ -572,10 +566,10 @@ static inline bool doubleratep(sample_rate rate)
 	return rate == SAMPLE_RATE_88200 || rate == SAMPLE_RATE_96000;
 }
 
-void uac_notify()
+void uac_notify(uac_id_t id)
 {
 	acstatus[0] = 0x80;
-	acstatus[1] = UAC_FU_SPEAKER_ID;
+	acstatus[1] = id;
 	ac.rts = true;
 }
 

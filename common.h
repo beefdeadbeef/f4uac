@@ -142,6 +142,16 @@ typedef struct {
 } cs_t;
 
 /*
+ * UAC Ids
+ */
+typedef enum {
+	UAC_IT_PCM_ID	= 1,
+	UAC_FU_MAIN_ID,
+	UAC_FU_SPEAKER_ID,
+	UAC_OT_HEADSET_ID,
+	UAC_OT_SPEAKER_ID
+} uac_id_t;
+/*
  *
  */
 #define MIN(a,b) ((a) < (b) ? (a) : (b))

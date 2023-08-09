@@ -57,7 +57,7 @@ void disp();
 void pump(page_t);
 void pwm();
 void pwm_enable();
-void uac_notify();
+void uac_notify(uac_id_t);
 void usbd(void);
 
 void sys_tick_handler(void)
@@ -114,7 +114,7 @@ void exti3_isr(void)
 	if (cstate.on[spmuted] != sp) {
 		cstate.on[spmuted] = sp;
 		cstate.on[boost] = !sp;
-		uac_notify();
+		uac_notify(UAC_FU_SPEAKER_ID);
 	}
 	speaker();
 }
