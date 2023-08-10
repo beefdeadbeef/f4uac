@@ -14,6 +14,7 @@
 #include "common.h"
 #include "icons.h"
 #include "tables.h"
+#include "font.h"
 
 extern volatile ev_t e;
 extern volatile cs_t cstate;
@@ -22,7 +23,7 @@ extern volatile cs_t cstate;
 #define DISP_Y		64
 #define DISP_PAGE_NUM	(DISP_Y / 8)
 #define DISP_PAGE_SIZE	(DISP_X)
-#define ICONSZ		24	/* 24x24 px */
+#define SICONSZ		24	/* 24x24 px */
 #define LICONSZ		40	/* 40x40 px */
 
 #define DISPNUM		2
@@ -30,16 +31,11 @@ extern volatile cs_t cstate;
 #define REFRESH_DIV_PRE	1024
 #define REFRESH_DIV	(REFRESH_DIV_PRE * REFRESH_HZ * DISPNUM * DISP_PAGE_NUM)
 
-static const icon iconrow[] = {
-	[spmuted]	= icon_headphones_box,
-	[boost]		= icon_subwoofer,
-	[muted]		= icon_volume_mute,
-	[sine]		= icon_sine_wave,
-	[usb]		= icon_usb
-};
+static uint8_t dispbuf[DISP_PAGE_SIZE] __attribute__((aligned(4)));
 
-#define NICONS (sizeof(iconrow)/sizeof(iconrow[0]))
-
+/*
+ *
+ */
 static const uint8_t sh1106_init[] = {
 	0xae,                   /* set display off */
 	0xd5, 0x80,             /* set osc frequency */
@@ -53,8 +49,6 @@ static const uint8_t sh1106_init[] = {
 	0xdb, 0x40,             /* set VCOMH deselect level */
 	0xaf	                /* set display on */
 };
-
-static uint8_t dispbuf[DISP_PAGE_SIZE] __attribute__((aligned(4)));
 
 /*
  *
@@ -82,25 +76,92 @@ static void disp_select_page(uint8_t i)
 	while (SPI_SR(SPI1) & SPI_SR_BSY);
 	gpio_set(GPIOA, GPIO4);				/* D/C */
 }
+/*
+ *
+ */
+static const icon iconrow[] = {
+	[spmuted]	= icon_headphones_box,
+	[boost]		= icon_subwoofer,
+	[muted]		= icon_volume_mute,
+	[sine]		= icon_sine_wave,
+	[usb]		= icon_usb
+};
 
-static uint16_t disp_f_to_idx(float in)
+#define NICONS (sizeof(iconrow)/sizeof(iconrow[0]))
+
+#define BAR_START	4
+#define BAR_LEN		(DISP_PAGE_SIZE - 2 * BAR_START)
+
+static unsigned f_to_barlen(float f)
 {
-	return MIN(DISP_PAGE_SIZE * in, DISP_PAGE_SIZE - 1);
+	return MIN((unsigned)(BAR_LEN * f), BAR_LEN - 1);
 }
 
-static void disp_draw_bar(uint8_t c, uint16_t max)
+static void disp_draw_bar(uint8_t *dst, uint8_t c, float f)
 {
-	for (unsigned i=0; i<=max; i+=2) dispbuf[i] = c;
+	unsigned len = f_to_barlen(f) / 2;
+	uint16_t *p = (uint16_t *)dst;
+	while (len--) *p++ = (uint16_t)c << 8;
+}
 
-static uint16_t disp_draw_icon(uint8_t *dst, icon ico, uint16_t page)
+static void disp_draw_icon(uint8_t *dst, icon ico, uint16_t page)
 {
 	const char *src = icons[ico].p + page;
-	uint16_t iconsz = icons[ico].h;
-	for (uint16_t i=0; i<iconsz; i++) {
+	unsigned iconsz = icons[ico].h;
+	for (unsigned i=0; i<iconsz; i++) {
 		*dst++ = *src;
 		src += iconsz / 8;
 	}
-	return iconsz;
+}
+
+static void disp_draw_char(uint8_t *dst, uint16_t c, uint16_t page)
+{
+	const uint8_t *src = font_bits + font_height * c + font_width * (1 - page);
+	memcpy(dst, src, font_width);
+}
+
+static void disp_draw_string(uint8_t *dst, const char *s, uint16_t page)
+{
+	while (*s) {
+		disp_draw_char(dst, *s++, page);
+		dst += font_width;
+	}
+}
+
+static const char * const vol_strings[] = {
+	" 0 ", "-1 ", "-2 ", "-3 ", "-4 ", "-5 ", "-6 ", "-7 ",
+	"-8 ", "-9 ", "-10", "-11", "-12", "-13", "-14", "-15",
+	"-16", "-17", "-18", "-19", "-20", "-21", "-22", "-23",
+	"-24", "-25", "-26", "-27", "-28", "-29", "-30", "-31",
+	"-32", "-33", "-34", "-35", "-36", "-37", "-38", "-39",
+	"-40", "-41", "-42", "-43", "-44", "-45", "-46", "-47",
+	"-48", "-49", "-50", "-51", "-52", "-53", "-54", "-55",
+	"-56", "-57", "-58", "-59", "-60"
+};
+
+static const char * const fmt_strings[] = {
+	[SAMPLE_FORMAT_NONE]	= "-:-",
+	[SAMPLE_FORMAT_S16]	= "S16",
+	[SAMPLE_FORMAT_S24]	= "S24",
+	[SAMPLE_FORMAT_S32]	= "S32",
+	[SAMPLE_FORMAT_F32]	= "F32"
+};
+
+static const char * rate_strings(sample_rate rate)
+{
+	const struct {
+		sample_rate rate;
+		const char *s;
+	} strings[] = {
+		{ .rate = SAMPLE_RATE_44100, .s = "44k" },
+		{ .rate = SAMPLE_RATE_48000, .s = "48k" },
+		{ .rate = SAMPLE_RATE_88200, .s = "88k" },
+		{ .rate = SAMPLE_RATE_96000, .s = "96k" },
+		{ .rate = SAMPLE_RATE_NONE,  .s = "-:-" }
+	}, *rs = strings;
+
+	while (rs->rate && rs->rate != rate) rs++;
+	return rs->s;
 }
 
 static void disp_fill_page(unsigned page)
@@ -111,47 +172,67 @@ static void disp_fill_page(unsigned page)
 
 	switch (page) {
 	case 0 ... 2:
-	{
-		uint8_t * dst = dispbuf;
-		for (unsigned i=0; i<NICONS; i++) {
-			dst += cstate.on[i] ?
-				disp_draw_icon(dst, iconrow[i], page):
-				icons[iconrow[i]].h;
-			dst += 2;	/* spacing */
+		for (unsigned i=0; i<NICONS; i++)
+			if (cstate.on[i])
+				disp_draw_icon(dispbuf + i * (SICONSZ + 2),
+					       iconrow[i], page);
+		break;
+	case 3 ... 7:
+		disp_draw_icon(dispbuf + LICONSZ,
+			       e.state == STATE_RUNNING ? icon_play : icon_pause,
+			       page - 3);
+		if (page > 5) {
+			disp_draw_string(dispbuf + 4, "dB:", page - 6);
+			disp_draw_string(dispbuf + 100,
+					 rate_strings(cstate.rate), page - 6);
+		}
+		else if (page > 3) {
+			disp_draw_string(dispbuf + 4,
+					 vol_strings[cstate.attn], page - 4);
+			disp_draw_string(dispbuf + 100,
+					 fmt_strings[cstate.format], page - 4);
 		}
 		break;
-	}
-	case 3 ... 7:
-	{
-		uint8_t *dst = dispbuf + (DISP_PAGE_SIZE - LICONSZ) / 2;
-		icon ico = e.state == STATE_RUNNING ? icon_play : icon_pause;
-		disp_draw_icon(dst, ico, page - 3);
-		break;
-	}
 	case 9:
-		disp_draw_bar(0xff, disp_f_to_idx(4 * cstate.rms[1]));
-		dispbuf[disp_f_to_idx(4 * cstate.peak[1])] = 0x55;
+		disp_draw_bar(dispbuf + BAR_START, 0xff, 4 * cstate.rms[1]);
+		dispbuf[BAR_START + f_to_barlen(4 * cstate.peak[1])] = 0x55;
 		break;
 	case 10:
-		disp_draw_bar(0x7f, disp_f_to_idx(4 * cstate.rms[1]));
-		dispbuf[disp_f_to_idx(4 * cstate.peak[1])] = 0x55;
+		disp_draw_bar(dispbuf + BAR_START, 0x7f, 4 * cstate.rms[1]);
+		dispbuf[BAR_START + f_to_barlen(4 * cstate.peak[1])] = 0x55;
 		break;
 	case 11:
-		disp_draw_bar(0x70, disp_f_to_idx(scale[cstate.attn]));
+		disp_draw_bar(dispbuf + BAR_START, 0x70, scale[cstate.attn]);
 		break;
 	case 12:
-		disp_draw_bar(0x0e, disp_f_to_idx(scale[cstate.attn]));
+		disp_draw_bar(dispbuf + BAR_START, 0x0e, scale[cstate.attn]);
 		break;
 	case 13:
-		disp_draw_bar(0xfe, disp_f_to_idx(4 * cstate.rms[0]));
-		dispbuf[disp_f_to_idx(4 * cstate.peak[0])] = 0xaa;
+		disp_draw_bar(dispbuf + BAR_START, 0xfe, 4 * cstate.rms[0]);
+		dispbuf[BAR_START + f_to_barlen(4 * cstate.peak[0])] = 0xaa;
 		break;
 	case 14:
-		disp_draw_bar(0xff, disp_f_to_idx(4 * cstate.rms[0]));
-		dispbuf[disp_f_to_idx(4 * cstate.peak[0])] = 0xaa;
+		disp_draw_bar(dispbuf + BAR_START, 0xff, 4 * cstate.rms[0]);
+		dispbuf[BAR_START + f_to_barlen(4 * cstate.peak[0])] = 0xaa;
 	default:
 		break;
 	}
+
+	switch (page) {
+	case 0:
+	case 8:
+		for (unsigned i=0; i<DISP_PAGE_SIZE; i++)
+			dispbuf[i] |= 0x01;
+		break;
+	case 7:
+	case 15:
+		for (unsigned i=0; i<DISP_PAGE_SIZE; i++)
+			dispbuf[i] |= 0x80;
+	default:
+		break;
+	}
+
+	dispbuf[0] = dispbuf[DISP_PAGE_SIZE - 1] = 0xff;
 }
 
 void dma2_channel1_isr()
