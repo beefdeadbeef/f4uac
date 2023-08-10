@@ -1,12 +1,16 @@
 /* -*- mode: c -*-
  */
 
+#include <stdint.h>
+
 typedef enum {@ICON_ENUMS@
 	icon_null
 } icon;
 
 typedef struct {
-        const char *p;
+	const char *p;
+	uint16_t w;
+	uint16_t h;
 } icons_s;
 
 extern const icons_s icons[];

@@ -91,6 +91,16 @@ static uint16_t disp_f_to_idx(float in)
 static void disp_draw_bar(uint8_t c, uint16_t max)
 {
 	for (unsigned i=0; i<=max; i+=2) dispbuf[i] = c;
+
+static uint16_t disp_draw_icon(uint8_t *dst, icon ico, uint16_t page)
+{
+	const char *src = icons[ico].p + page;
+	uint16_t iconsz = icons[ico].h;
+	for (uint16_t i=0; i<iconsz; i++) {
+		*dst++ = *src;
+		src += iconsz / 8;
+	}
+	return iconsz;
 }
 
 static void disp_fill_page(unsigned page)
@@ -104,15 +114,9 @@ static void disp_fill_page(unsigned page)
 	{
 		uint8_t * dst = dispbuf;
 		for (unsigned i=0; i<NICONS; i++) {
-			const char *src = icons[iconrow[i]].p + page;
-			if (cstate.on[i]) {
-				for (unsigned j=0; j<ICONSZ; j++) {
-					*dst++ = *src;
-					src += (ICONSZ / 8);
-				}
-			} else {
-				dst += ICONSZ;
-			}
+			dst += cstate.on[i] ?
+				disp_draw_icon(dst, iconrow[i], page):
+				icons[iconrow[i]].h;
 			dst += 2;	/* spacing */
 		}
 		break;
@@ -120,13 +124,8 @@ static void disp_fill_page(unsigned page)
 	case 3 ... 7:
 	{
 		uint8_t *dst = dispbuf + (DISP_PAGE_SIZE - LICONSZ) / 2;
-		const char *src = (e.state == STATE_RUNNING ?
-				   icons[icon_play].p :
-				   icons[icon_pause].p) + page - 3;
-		for (unsigned i=0; i<LICONSZ; i++, dst++) {
-			*dst = *src;
-			src += (LICONSZ / 8);
-		}
+		icon ico = e.state == STATE_RUNNING ? icon_play : icon_pause;
+		disp_draw_icon(dst, ico, page - 3);
 		break;
 	}
 	case 9:

@@ -17,7 +17,7 @@ icons.h: icons.h.in
 icons.c: icons.c.in icons.h
 	$(Q)$(SED) \
 		-e "s,@ICON_INCLUDES@,$(foreach i,$(ICONS),\n\#include \"$i.xbm\")," \
-		-e "s,@ICON_TABLE@,$(foreach i,$(ICONS),\n\t{ .p = $i_bits }\,)," \
+		-e "s,@ICON_TABLE@,$(foreach i,$(ICONS),\n\t{ .p = $i_bits\, .w=$i_width\, .h=$i_height }\,)," \
 		$< > $@
 
 icons.o:	$(addsuffix .xbm,$(ICONS))
