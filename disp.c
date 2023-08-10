@@ -20,7 +20,9 @@ extern volatile ev_t e;
 extern volatile cs_t cstate;
 
 extern void speaker();
+extern void set_scale();
 extern void uac_notify(uint8_t);
+
 #define DISP_X		128
 #define DISP_Y		64
 #define DISP_PAGE_NUM	(DISP_Y / 8)
@@ -234,6 +236,8 @@ static void disp_fill_page(unsigned page)
 	dispbuf[0] = dispbuf[DISP_PAGE_SIZE - 1] = 0xff;
 }
 
+static volatile unsigned swapdisp;
+
 #define DBCNT 12
 #define NBTNS 2
 static void disp_poll_buttons(unsigned now)
@@ -261,6 +265,8 @@ static void disp_poll_buttons(unsigned now)
 
 	if (!ready) return;
 
+	swapdisp = 1 & ready & ~bits;
+
 	if ((i = (2 & ready))) {
 		bool sp = i & bits;
 		if (cstate.on[spmuted] != sp) {
@@ -270,6 +276,20 @@ static void disp_poll_buttons(unsigned now)
 		}
 		speaker();
 	}
+}
+
+static void disp_poll_encoder(unsigned now)
+{
+	static unsigned last = 0x8000;
+	int attn = cstate.attn;
+
+	if (now == last) return;
+	attn += now > last ? 1 : -1;
+	last = now;
+	if (attn < 0 || attn == VOLSTEPS) return;
+	cstate.attn = attn;
+	uac_notify(UAC_FU_MAIN_ID);
+	set_scale();
 }
 
 void dma2_channel1_isr()
@@ -283,11 +303,21 @@ void tim4_isr()
 {
 	timer_clear_flag(TIM4, TIM_SR_UIF);
 	disp_poll_buttons(gpio_get(GPIOA, GPIO2|GPIO3) >> 2);
+	disp_poll_encoder(timer_get_counter(TIM2));
 	disp_fill_page(timer_get_counter(TIM3));
 	dma_set_memory_address(DMA2, DMA_CHANNEL1, (uint32_t)dispbuf);
 	dma_set_number_of_data(DMA2, DMA_CHANNEL1, sizeof(dispbuf));
 	dma_enable_channel(DMA2, DMA_CHANNEL1);
 	spi_enable_tx_dma(SPI4);
+}
+
+void tim3_isr()
+{
+	timer_clear_flag(TIM3, TIM_SR_UIF);
+	if (swapdisp) {
+		swapdisp = 0;
+		TIM_CCER(TIM3) ^= TIM_CCER_CC1P | TIM_CCER_CC2P;
+	}
 }
 
 void disp()
@@ -329,6 +359,8 @@ void disp()
 	timer_enable_oc_output(TIM4, TIM_OC1);
 	timer_enable_preload(TIM4);
 
+	nvic_enable_irq(NVIC_TIM3_IRQ);
+	timer_enable_irq(TIM3, TIM_DIER_UIE);
 	timer_slave_set_mode(TIM3, TIM_SMCR_SMS_ECM1);
 	timer_slave_set_trigger(TIM3, TIM_SMCR_TS_ITR3);	/* TIM4 */
 	timer_set_period(TIM3, DISPNUM * DISP_PAGE_NUM - 1);
@@ -341,6 +373,13 @@ void disp()
 	timer_enable_oc_output(TIM3, TIM_OC2);
 	timer_enable_preload(TIM3);
 
+	timer_set_counter(TIM2, 0x8000);
+	timer_slave_set_mode(TIM2, TIM_SMCR_SMS_EM1);
+	timer_slave_set_filter(TIM2, 0xc);		/* FIXME */
+	timer_set_oc_polarity_low(TIM2, TIM_OC1);
+	timer_set_oc_polarity_low(TIM2, TIM_OC2);
+
+	timer_enable_counter(TIM2);
 	timer_enable_counter(TIM3);
 	timer_enable_counter(TIM4);
 }

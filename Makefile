@@ -34,7 +34,7 @@ lib:
 
 dsp.o usbd.o:	tables.h
 
-disp.o:		font.h icons.h
+disp.o:		font.h icons.h tables.h
 
 $(TABLES):	tables.m
 		@printf "  OCT     $@\n"

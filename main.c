@@ -110,6 +110,7 @@ int main() {
 	rcc_periph_clock_enable(RCC_GPIOC);
 	rcc_periph_clock_enable(RCC_SPI4);
 	rcc_periph_clock_enable(RCC_TIM1);
+	rcc_periph_clock_enable(RCC_TIM2);
 	rcc_periph_clock_enable(RCC_TIM3);
 	rcc_periph_clock_enable(RCC_TIM4);
 	rcc_set_hsi_div(RCC_CFGR3_HSIDIV_NODIV);
@@ -132,6 +133,10 @@ int main() {
 	gpio_set_mux(AFIO_GMUX_SWJ_NO_JTAG);
 	gpio_set_mux(AFIO_GMUX_TIM3_B4);
 	gpio_set_mux(AFIO_GMUX_SPI4_B6);
+	gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
+		      GPIO_CNF_INPUT_PULL_UPDOWN,
+		      GPIO0|GPIO1|			/* TIM2 CH[1:2] */
+		      GPIO2);				/* ENC_SW */
 	gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
 		      GPIO_CNF_INPUT_FLOAT,
 		      GPIO3);				/* JSENSE */
