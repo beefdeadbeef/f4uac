@@ -31,9 +31,9 @@ extern volatile cs_t cstate;
 #define REFRESH_DIV	(REFRESH_DIV_PRE * REFRESH_HZ * DISPNUM * DISP_PAGE_NUM)
 
 static const icon iconrow[] = {
-	[muted]		= icon_volume_mute,
 	[spmuted]	= icon_headphones_box,
 	[boost]		= icon_subwoofer,
+	[muted]		= icon_volume_mute,
 	[sine]		= icon_sine_wave,
 	[usb]		= icon_usb
 };

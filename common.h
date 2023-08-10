@@ -130,7 +130,7 @@ typedef struct {
 /*
  *
  */
-enum { muted, spmuted, boost, sine, usb, sw_num };
+enum { spmuted, boost, muted, sine, usb, sw_num };
 typedef struct {
 	bool on[sw_num];
 	uint16_t attn;
