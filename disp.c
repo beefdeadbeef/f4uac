@@ -50,31 +50,28 @@ static const uint8_t sh1106_init[] = {
 	0xaf	                /* set display on */
 };
 
-/*
- *
- */
 static void disp_init()
 {
-	gpio_clear(GPIOA, GPIO6);			/* RST */
+	gpio_clear(GPIOB, GPIO6);			/* RST */
 	for (unsigned i=0; i<128; i++);
-	gpio_set(GPIOA, GPIO6);
-	gpio_clear(GPIOA, GPIO4);			/* D/C */
+	gpio_set(GPIOB, GPIO6);
+	gpio_clear(GPIOB, GPIO8);			/* D/C */
 	for (unsigned i=0; i < sizeof(sh1106_init); i++)
-		spi_send(SPI1, sh1106_init[i]);
-	while (!(SPI_SR(SPI1) & SPI_SR_TXE));
-	while (SPI_SR(SPI1) & SPI_SR_BSY);
-	gpio_set(GPIOA, GPIO4);				/* D/C */
+		spi_send(SPI4, sh1106_init[i]);
+	while (!(SPI_SR(SPI4) & SPI_SR_TXE));
+	while (SPI_SR(SPI4) & SPI_SR_BSY);
+	gpio_set(GPIOB, GPIO8);				/* D/C */
 }
 
 static void disp_select_page(uint8_t i)
 {
-	gpio_clear(GPIOA, GPIO4);			/* D/C */
-	spi_send(SPI1, 0xb0 | (i&7));
-	spi_send(SPI1, 0x02);
-	spi_send(SPI1, 0x10);
-	while (!(SPI_SR(SPI1) & SPI_SR_TXE));
-	while (SPI_SR(SPI1) & SPI_SR_BSY);
-	gpio_set(GPIOA, GPIO4);				/* D/C */
+	gpio_clear(GPIOB, GPIO8);			/* D/C */
+	spi_send(SPI4, 0xb0 | (i&7));
+	spi_send(SPI4, 0x02);
+	spi_send(SPI4, 0x10);
+	while (!(SPI_SR(SPI4) & SPI_SR_TXE));
+	while (SPI_SR(SPI4) & SPI_SR_BSY);
+	gpio_set(GPIOB, GPIO8);				/* D/C */
 }
 /*
  *
@@ -238,70 +235,71 @@ static void disp_fill_page(unsigned page)
 void dma2_channel1_isr()
 {
 	dma_clear_interrupt_flags(DMA2, DMA_CHANNEL1, DMA_TCIF);
-	spi_disable_tx_dma(SPI1);
+	spi_disable_tx_dma(SPI4);
 	dma_disable_channel(DMA2, DMA_CHANNEL1);
 }
 
-void tim1_up_isr()
+void tim4_isr()
 {
-	timer_clear_flag(TIM10, TIM_SR_UIF);
-	disp_fill_page(timer_get_counter(TIM9));
+	timer_clear_flag(TIM4, TIM_SR_UIF);
+	disp_fill_page(timer_get_counter(TIM3));
 	dma_set_memory_address(DMA2, DMA_CHANNEL1, (uint32_t)dispbuf);
 	dma_set_number_of_data(DMA2, DMA_CHANNEL1, sizeof(dispbuf));
 	dma_enable_channel(DMA2, DMA_CHANNEL1);
-	spi_enable_tx_dma(SPI1);
+	spi_enable_tx_dma(SPI4);
 }
 
 void disp()
 {
-	rcc_periph_reset_pulse(RST_SPI1);
-	spi_init_master(SPI1,
+	rcc_periph_reset_pulse(RST_SPI4);
+	spi_init_master(SPI4,
                         SPI_CR1_BAUDRATE_FPCLK_DIV_64,
                         SPI_CR1_CPOL_CLK_TO_0_WHEN_IDLE,
                         SPI_CR1_CPHA_CLK_TRANSITION_1,
                         SPI_CR1_DFF_8BIT,
                         SPI_CR1_MSBFIRST);
 
-	spi_set_bidirectional_transmit_only_mode(SPI1);
-	spi_enable_software_slave_management(SPI1);
-	spi_set_nss_high(SPI1);
-	spi_enable(SPI1);
+	spi_set_bidirectional_transmit_only_mode(SPI4);
+	spi_enable_software_slave_management(SPI4);
+	spi_set_nss_high(SPI4);
+	spi_enable(SPI4);
 
 	disp_init();
 
 	dma_enable_flex_mode(DMA2);
 	dma_channel_reset(DMA2, DMA_CHANNEL1);
-	dma_set_channel_request(DMA2, DMA_CHANNEL1, DMA_REQ_SPI1_TX);
+	dma_set_channel_request(DMA2, DMA_CHANNEL1, DMA_REQ_SPI4_TX);
 	dma_set_priority(DMA2, DMA_CHANNEL1, DMA_CCR_PL_LOW);
 	dma_set_memory_size(DMA2, DMA_CHANNEL1, DMA_CCR_MSIZE_8BIT);
 	dma_set_peripheral_size(DMA2, DMA_CHANNEL1, DMA_CCR_PSIZE_8BIT);
 	dma_enable_memory_increment_mode(DMA2, DMA_CHANNEL1);
 	dma_set_read_from_memory(DMA2, DMA_CHANNEL1);
-	dma_set_peripheral_address(DMA2, DMA_CHANNEL1, (uint32_t)&SPI1_DR);
+	dma_set_peripheral_address(DMA2, DMA_CHANNEL1, (uint32_t)&SPI_DR(SPI4));
 	dma_enable_transfer_complete_interrupt(DMA2, DMA_CHANNEL1);
 	nvic_enable_irq(NVIC_DMA2_CHANNEL1_IRQ);
 
-	nvic_enable_irq(NVIC_TIM1_UP_IRQ);
-	timer_enable_irq(TIM10, TIM_DIER_UIE);
-	timer_set_prescaler(TIM10, REFRESH_DIV_PRE - 1);
-	timer_set_period(TIM10, rcc_ahb_frequency / REFRESH_DIV);
-	timer_set_oc_value(TIM10, TIM_OC1, 3);
-	timer_set_oc_mode(TIM10, TIM_OC1, TIM_OCM_PWM1);
-	timer_enable_oc_output(TIM10, TIM_OC1);
-	timer_enable_preload(TIM10);
+	nvic_enable_irq(NVIC_TIM4_IRQ);
+	timer_enable_irq(TIM4, TIM_DIER_UIE);
+	timer_set_prescaler(TIM4, REFRESH_DIV_PRE - 1);
+	timer_set_period(TIM4, rcc_ahb_frequency / REFRESH_DIV);
+	timer_set_master_mode(TIM4, TIM_CR2_MMS_COMPARE_OC1REF);
+	timer_set_oc_value(TIM4, TIM_OC1, 3);
+	timer_set_oc_mode(TIM4, TIM_OC1, TIM_OCM_PWM1);
+	timer_enable_oc_output(TIM4, TIM_OC1);
+	timer_enable_preload(TIM4);
 
-	timer_slave_set_mode(TIM9, TIM_SMCR_SMS_ECM1);
-	timer_slave_set_trigger(TIM9, TIM_SMCR_TS_ITR2);	/* TIM10_OC */
-	timer_set_period(TIM9, DISPNUM * DISP_PAGE_NUM - 1);
-	timer_set_oc_mode(TIM9, TIM_OC1, TIM_OCM_PWM1);
-	timer_set_oc_mode(TIM9, TIM_OC2, TIM_OCM_PWM1);
-	timer_set_oc_polarity_low(TIM9, TIM_OC1);
-	timer_set_oc_value(TIM9, TIM_OC1, DISP_PAGE_NUM);
-	timer_set_oc_value(TIM9, TIM_OC2, DISP_PAGE_NUM);
-	timer_enable_oc_output(TIM9, TIM_OC1);
-	timer_enable_oc_output(TIM9, TIM_OC2);
-	timer_enable_preload(TIM9);
+	timer_slave_set_mode(TIM3, TIM_SMCR_SMS_ECM1);
+	timer_slave_set_trigger(TIM3, TIM_SMCR_TS_ITR3);	/* TIM4 */
+	timer_set_period(TIM3, DISPNUM * DISP_PAGE_NUM - 1);
+	timer_set_oc_mode(TIM3, TIM_OC1, TIM_OCM_PWM1);
+	timer_set_oc_mode(TIM3, TIM_OC2, TIM_OCM_PWM1);
+	timer_set_oc_polarity_low(TIM3, TIM_OC1);
+	timer_set_oc_value(TIM3, TIM_OC1, DISP_PAGE_NUM);
+	timer_set_oc_value(TIM3, TIM_OC2, DISP_PAGE_NUM);
+	timer_enable_oc_output(TIM3, TIM_OC1);
+	timer_enable_oc_output(TIM3, TIM_OC2);
+	timer_enable_preload(TIM3);
 
-	timer_enable_counter(TIM9);
-	timer_enable_counter(TIM10);
+	timer_enable_counter(TIM3);
+	timer_enable_counter(TIM4);
 }

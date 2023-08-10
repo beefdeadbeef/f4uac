@@ -104,12 +104,13 @@ void speaker()
 	}
 }
 
-void exti9_5_isr(void)
+void exti3_isr(void)
 {
 	bool sp;
-	exti_reset_request(EXTI9);
+
+	exti_reset_request(EXTI3);
 	/* jsense active high */
-	sp = gpio_get(GPIOB, GPIO9) != 0;
+	sp = gpio_get(GPIOA, GPIO3) != 0;
 	if (cstate.on[spmuted] != sp) {
 		cstate.on[spmuted] = sp;
 		cstate.on[boost] = !sp;
@@ -138,10 +139,10 @@ int main() {
 	rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOC);
-	rcc_periph_clock_enable(RCC_SPI1);
+	rcc_periph_clock_enable(RCC_SPI4);
 	rcc_periph_clock_enable(RCC_TIM1);
-	rcc_periph_clock_enable(RCC_TIM9);
-	rcc_periph_clock_enable(RCC_TIM10);
+	rcc_periph_clock_enable(RCC_TIM3);
+	rcc_periph_clock_enable(RCC_TIM4);
 	rcc_set_hsi_div(RCC_CFGR3_HSIDIV_NODIV);
 	rcc_set_hsi_sclk(RCC_CFGR5_HSI_SCLK_HSIDIV);
 	rcc_set_usb_clock_source(RCC_HSI);
@@ -160,44 +161,47 @@ int main() {
  * gpios
  */
 	gpio_set_mux(AFIO_GMUX_SWJ_NO_JTAG);
-	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ,
-		      GPIO_CNF_OUTPUT_PUSHPULL,
-		      GPIO0|GPIO1|			/* DEBUG */
-		      GPIO4|				/* DISP D/C */
-		      GPIO6|				/* DISP RST */
-		      GPIO15);				/* PWMEN1 */
+	gpio_set_mux(AFIO_GMUX_TIM3_B4);
+	gpio_set_mux(AFIO_GMUX_SPI4_B6);
+	gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
+		      GPIO_CNF_INPUT_FLOAT,
+		      GPIO3);				/* JSENSE */
 	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
-		      GPIO2|GPIO3|			/* TIM9 CH[1:2] */
-		      GPIO5|GPIO7|			/* SPI1 */
 		      GPIO8|GPIO9|GPIO10|		/* TIM1 CH[1:3] */
 		      GPIO11|GPIO12);			/* USBFS */
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL,
+		      GPIO15);				/* PWMEN1 */
 
-	gpio_set_mode(GPIOB, GPIO_MODE_INPUT,
-		      GPIO_CNF_INPUT_FLOAT,
-		      GPIO9);				/* JSENSE */
 	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_10_MHZ,
 		      GPIO_CNF_OUTPUT_PUSHPULL,
+		      GPIO6|				/* DISP_RST */
+		      GPIO8|				/* DISP_DC */
 		      GPIO12);				/* PWMEN */
 	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
+		      GPIO4|GPIO5|			/* TIM3 CH[1:2] */
+		      GPIO7|				/* SPI4 CLK */
+		      GPIO9|				/* SPI4 MOSI */
 		      GPIO13|GPIO14|GPIO15);		/* TIM1 CH[1:3]N */
 
 	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ,
 		      GPIO_CNF_OUTPUT_PUSHPULL,
 		      GPIO13);				/* PC13 LED */
 
-	cstate.on[spmuted] = (gpio_get(GPIOB, GPIO9) != 0);
+	gpio_set(GPIOA, GPIO0|GPIO1|GPIO2|GPIO3|GPIO15);
+	gpio_set(GPIOB, GPIO6|GPIO8|GPIO12);
+
+	cstate.on[spmuted] = (gpio_get(GPIOA, GPIO3) != 0);
 	cstate.on[boost] = !cstate.on[spmuted];
-	gpio_set(GPIOA, GPIO0|GPIO1|GPIO2|GPIO3|GPIO4|GPIO6|GPIO15);
-	gpio_set(GPIOB, GPIO12);
 /*
- * exti
+ *	jack sense
  */
-	exti_select_source(EXTI9, GPIOB);
-	exti_set_trigger(EXTI9, EXTI_TRIGGER_BOTH);
-	exti_enable_request(EXTI9);
-	nvic_enable_irq(NVIC_EXTI9_5_IRQ);
+	exti_select_source(EXTI3, GPIOA);
+	exti_set_trigger(EXTI3, EXTI_TRIGGER_BOTH);
+	exti_enable_request(EXTI3);
+	nvic_enable_irq(NVIC_EXTI3_IRQ);
 /*
  *
  */
