@@ -19,6 +19,8 @@
 extern volatile ev_t e;
 extern volatile cs_t cstate;
 
+extern void speaker();
+extern void uac_notify(uint8_t);
 #define DISP_X		128
 #define DISP_Y		64
 #define DISP_PAGE_NUM	(DISP_Y / 8)
@@ -232,6 +234,44 @@ static void disp_fill_page(unsigned page)
 	dispbuf[0] = dispbuf[DISP_PAGE_SIZE - 1] = 0xff;
 }
 
+#define DBCNT 12
+#define NBTNS 2
+static void disp_poll_buttons(unsigned now)
+{
+	static uint8_t counter[NBTNS] = { DBCNT, DBCNT };
+	static unsigned last, bits = (1<<NBTNS) - 1;
+	unsigned i, mask, ready, toggled = bits ^ now;
+
+	for (i=0, ready=0, mask=1; i<NBTNS; i++, mask<<=1) {
+		if (toggled & mask) {
+			counter[i] = DBCNT;
+		} else {
+			if (counter[i] == 0) {
+				ready |= mask;
+			} else {
+				counter[i]--;
+			}
+		}
+	}
+
+	bits ^= toggled;
+	toggled = last ^ ready;
+	last = ready;
+	ready &= toggled;
+
+	if (!ready) return;
+
+	if ((i = (2 & ready))) {
+		bool sp = i & bits;
+		if (cstate.on[spmuted] != sp) {
+			cstate.on[spmuted] = sp;
+			cstate.on[boost] = !sp;
+			uac_notify(UAC_FU_SPEAKER_ID);
+		}
+		speaker();
+	}
+}
+
 void dma2_channel1_isr()
 {
 	dma_clear_interrupt_flags(DMA2, DMA_CHANNEL1, DMA_TCIF);
@@ -242,6 +282,7 @@ void dma2_channel1_isr()
 void tim4_isr()
 {
 	timer_clear_flag(TIM4, TIM_SR_UIF);
+	disp_poll_buttons(gpio_get(GPIOA, GPIO2|GPIO3) >> 2);
 	disp_fill_page(timer_get_counter(TIM3));
 	dma_set_memory_address(DMA2, DMA_CHANNEL1, (uint32_t)dispbuf);
 	dma_set_number_of_data(DMA2, DMA_CHANNEL1, sizeof(dispbuf));

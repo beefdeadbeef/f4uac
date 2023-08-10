@@ -4,6 +4,7 @@
  */
 
 #include <libopencm3/stm32/dma.h>
+#include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/nvic.h>
 
@@ -21,6 +22,9 @@ static uint16_t dmabuf[2 * DMABUFSZ] __attribute__((aligned(4)));
 #define __DMA_MSIZE DMA_CCR_MSIZE_16BIT
 #define __DMA_PSIZE DMA_CCR_PSIZE_16BIT
 #define __dma_isr dma1_channel1_isr
+
+extern volatile ev_t e;
+extern volatile cs_t cstate;
 
 static volatile uint32_t dma_target;
 #define dma_get_target(x, y) (dma_target)
@@ -83,7 +87,19 @@ void pwm()
 	timer_enable_irq(TIM1, TIM_DIER_UDE);
 }
 
-extern void speaker();
+void speaker()
+{
+	if (e.state == STATE_RUNNING && !cstate.on[spmuted]) {
+		gpio_clear(GPIOB, GPIO12);
+		if (cstate.on[boost])
+			gpio_clear(GPIOA, GPIO15);
+		else
+			gpio_set(GPIOA, GPIO15);
+	} else {
+		gpio_set(GPIOA, GPIO15);
+		gpio_set(GPIOB, GPIO12);
+	}
+}
 
 void pwm_enable(void)
 {
@@ -98,8 +114,6 @@ static void pwm_disable(void)
 	timer_disable_counter(TIM1);
 	timer_disable_break_main_output(TIM1);
 }
-
-extern volatile ev_t e;
 
 void __dma_isr(void)
 {

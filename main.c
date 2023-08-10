@@ -6,7 +6,6 @@
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/stm32/crs.h>
-#include <libopencm3/stm32/exti.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/rcc.h>
 
@@ -57,7 +56,6 @@ void disp();
 void pump(page_t);
 void pwm();
 void pwm_enable();
-void uac_notify(uac_id_t);
 void usbd(void);
 
 void sys_tick_handler(void)
@@ -88,35 +86,6 @@ void pll_setup(sample_rate rate)
 	while(rcc_is_osc_ready(RCC_PLL));
 	rcc_clock_setup_pll(clk);
 	clock = clk;
-}
-
-void speaker()
-{
-	if (e.state == STATE_RUNNING && !cstate.on[spmuted]) {
-		gpio_clear(GPIOB, GPIO12);
-		if (cstate.on[boost])
-			gpio_clear(GPIOA, GPIO15);
-		else
-			gpio_set(GPIOA, GPIO15);
-	} else {
-		gpio_set(GPIOA, GPIO15);
-		gpio_set(GPIOB, GPIO12);
-	}
-}
-
-void exti3_isr(void)
-{
-	bool sp;
-
-	exti_reset_request(EXTI3);
-	/* jsense active high */
-	sp = gpio_get(GPIOA, GPIO3) != 0;
-	if (cstate.on[spmuted] != sp) {
-		cstate.on[spmuted] = sp;
-		cstate.on[boost] = !sp;
-		uac_notify(UAC_FU_SPEAKER_ID);
-	}
-	speaker();
 }
 
 static void poll()
@@ -195,13 +164,6 @@ int main() {
 
 	cstate.on[spmuted] = (gpio_get(GPIOA, GPIO3) != 0);
 	cstate.on[boost] = !cstate.on[spmuted];
-/*
- *	jack sense
- */
-	exti_select_source(EXTI3, GPIOA);
-	exti_set_trigger(EXTI3, EXTI_TRIGGER_BOTH);
-	exti_enable_request(EXTI3);
-	nvic_enable_irq(NVIC_EXTI3_IRQ);
 /*
  *
  */
