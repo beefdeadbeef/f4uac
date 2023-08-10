@@ -131,6 +131,7 @@ static void disp_fill_page(unsigned page)
 	}
 	case 9 ... 10:
 		disp_draw_bar(0xff, disp_f_to_idx(4 * cstate.rms[1]));
+		dispbuf[disp_f_to_idx(4 * cstate.peak[1])] = 0x55;
 		break;
 	case 11:
 		disp_draw_bar(0x60, disp_f_to_idx(scale[cstate.attn]));
@@ -140,6 +141,7 @@ static void disp_fill_page(unsigned page)
 		break;
 	case 13 ... 14:
 		disp_draw_bar(0xff, disp_f_to_idx(4 * cstate.rms[0]));
+		dispbuf[disp_f_to_idx(4 * cstate.peak[0])] = 0xaa;
 	default:
 		break;
 	}

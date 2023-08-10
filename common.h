@@ -135,9 +135,11 @@ typedef struct {
 	bool on[sw_num];
 	uint16_t attn;
 	float rms[2];
+	float peak[2];
 } cs_t;
 
 /*
  *
  */
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define MAX(a,b) ((a) > (b) ? (a) : (b))

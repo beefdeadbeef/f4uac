@@ -140,16 +140,20 @@ static void ewma(float in, float *result)
 static void rms(frame_t *frame)
 {
 	unsigned nframes = format.nframes;
-	float suml, sumr;
+	float acc, suml, sumr, peakl, peakr;
 
-	suml = sumr = 0.0f;
+	suml = sumr = peakl = peakr = 0.0f;
 	while(nframes--) {
-		suml += frame->l * frame->l;
-		sumr += frame->r * frame->r;
+		suml += acc = frame->l * frame->l;
+		peakl = MAX(peakl, acc);
+		sumr += acc = frame->r * frame->r;
+		peakr = MAX(peakr, acc);
 		frame++;
 	}
 	ewma(__vsqrt(suml / format.nframes), (float *)&cstate.rms[0]);
 	ewma(__vsqrt(sumr / format.nframes), (float *)&cstate.rms[1]);
+	ewma(__vsqrt(peakl), (float *)&cstate.peak[0]);
+	ewma(__vsqrt(peakr), (float *)&cstate.peak[1]);
 }
 
 /*
